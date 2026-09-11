@@ -128,11 +128,24 @@ function kcrm_db(): PDO
         }
         $pdo->exec('UPDATE contacts SET note_migrated=1');
     }
-    if (!in_array('handled', $cols, true)) {
-        // 0=未対応（新しい相談が来た） 1=対応済み。返信はLINE側で行う前提なので、
-        // 「返したかどうか」は機械には分からない。人が印を付ける運用にする。
-        $pdo->exec('ALTER TABLE contacts ADD COLUMN handled INTEGER DEFAULT 1');
-        $pdo->exec('UPDATE contacts SET handled=0 WHERE unread > 0');
+    // 未対応かどうかは「列に書いた真偽値」ではなく、そのつど計算する。
+    //   未対応 = 最後に相手から届いた時刻 > 最後に「対応済み」を押した時刻
+    // 真偽フラグだと、受信時の更新を一度でも書き損ねると以後ずっとズレたままになる。
+    // 時刻の比較なら、受信側が何もしなくても新着で自動的に未対応へ戻る。
+    if (!in_array('handled_at', $cols, true)) {
+        $pdo->exec("ALTER TABLE contacts ADD COLUMN handled_at TEXT DEFAULT ''");
+        if (in_array('handled', $cols, true)) {
+            $pdo->exec("UPDATE contacts SET handled_at = last_seen WHERE handled = 1");
+        }
+    }
+    // 時刻は秒単位なので、対応済みにした直後（同じ秒）に受信すると比較できない。
+    // 受信メッセージの id（単調増加）で比べる。
+    if (!in_array('handled_msg_id', $cols, true)) {
+        $pdo->exec('ALTER TABLE contacts ADD COLUMN handled_msg_id INTEGER DEFAULT 0');
+        // 旧データの引き継ぎ：対応済みだったものは、その時点の最新受信までを見たことにする
+        $pdo->exec("UPDATE contacts SET handled_msg_id =
+            IFNULL((SELECT MAX(m.id) FROM messages m WHERE m.user_id = contacts.user_id AND m.direction='in'), 0)
+            WHERE IFNULL(handled_at,'') <> ''");
     }
     $pdo->exec('CREATE TABLE IF NOT EXISTS webhook_log (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -238,8 +251,9 @@ function kcrm_add_message(string $user_id, string $direction, string $kind, stri
                   VALUES(?,?,?,?,?,?,?)')
        ->execute([$user_id, $direction, $kind, $body, $line_message_id, $billed, kcrm_now()]);
     if ($direction === 'in') {
-        // 相手から届いたら未対応に戻す（こちらが返したかはLINE側で行われるため分からない）
-        $db->prepare('UPDATE contacts SET unread = unread + 1, handled = 0 WHERE user_id=?')->execute([$user_id]);
+        // 未読の数だけ更新する。未対応かどうかは handled_at との比較で毎回求めるので、
+        // ここで状態を書く必要がない（書き損ねても壊れない）。
+        $db->prepare('UPDATE contacts SET unread = unread + 1 WHERE user_id=?')->execute([$user_id]);
     }
 }
 
@@ -253,10 +267,18 @@ function kcrm_push_used_this_month(): int
     return (int)$st->fetchColumn();
 }
 
+/** 未対応の判定式。ここ1か所だけに置く（画面と件数で食い違わせないため）。
+ *  「最後に相手から届いた時刻」が「最後に対応済みを押した時刻」より後なら未対応。 */
+define('KCRM_OPEN_SQL',
+    "IFNULL((SELECT MAX(m.id) FROM messages m WHERE m.user_id = c.user_id AND m.direction = 'in'), 0)"
+    . " > IFNULL(c.handled_msg_id, 0)");
+
 /** 未対応の件数。画面の主役はここ（返信そのものはLINE側で行う） */
 function kcrm_open_count(): int
 {
-    return (int)kcrm_db()->query('SELECT COUNT(*) FROM contacts WHERE handled=0')->fetchColumn();
+    return (int)kcrm_db()->query(
+        "SELECT COUNT(*) FROM contacts c WHERE " . KCRM_OPEN_SQL
+    )->fetchColumn();
 }
 
 function kcrm_h(?string $s): string

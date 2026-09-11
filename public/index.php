@@ -82,9 +82,17 @@ if (($_POST['action'] ?? '') === 'send') {
 
 if (($_POST['action'] ?? '') === 'handled') {
     $uid = (string)($_POST['user_id'] ?? '');
-    $to  = ((string)($_POST['to'] ?? '1')) === '1' ? 1 : 0;
-    $db->prepare('UPDATE contacts SET handled=? WHERE user_id=?')->execute([$to, $uid]);
-    $notice = $to === 1 ? '対応済みにしました。' : '未対応に戻しました。';
+    $to  = ((string)($_POST['to'] ?? '1')) === '1';
+    // 対応済み＝「その時点の最新の受信ID」まで見たことにする（時刻だと同じ秒で判定できない）。
+    // 未対応に戻す＝0に戻す。
+    if ($to) {
+        $db->prepare("UPDATE contacts SET handled_at=?, handled_msg_id =
+              IFNULL((SELECT MAX(m.id) FROM messages m WHERE m.user_id=? AND m.direction='in'), 0)
+            WHERE user_id=?")->execute([kcrm_now(), $uid, $uid]);
+    } else {
+        $db->prepare("UPDATE contacts SET handled_at='', handled_msg_id=0 WHERE user_id=?")->execute([$uid]);
+    }
+    $notice = $to ? '対応済みにしました。' : '未対応に戻しました。';
 }
 
 /* 連絡先（会社名・担当者名・メール・電話・URL・住所・流入元） */
@@ -117,14 +125,15 @@ if ($sel !== '') {
 }
 
 $filter = (string)($_GET['f'] ?? '');
+$open_sql = '(' . KCRM_OPEN_SQL . ') AS is_open';
 $contacts = $filter === 'open'
-    ? $db->query('SELECT * FROM contacts WHERE handled=0 ORDER BY last_seen DESC')->fetchAll()
-    : $db->query('SELECT * FROM contacts ORDER BY handled ASC, last_seen DESC')->fetchAll();
+    ? $db->query("SELECT *, $open_sql FROM contacts c WHERE " . KCRM_OPEN_SQL . " ORDER BY last_seen DESC")->fetchAll()
+    : $db->query("SELECT *, $open_sql FROM contacts c ORDER BY is_open DESC, last_seen DESC")->fetchAll();
 $open_n = kcrm_open_count();
 $thread   = [];
 $person   = null;
 if ($sel !== '') {
-    $st = $db->prepare('SELECT * FROM contacts WHERE user_id=?');
+    $st = $db->prepare("SELECT *, (" . KCRM_OPEN_SQL . ") AS is_open FROM contacts c WHERE user_id=?");
     $st->execute([$sel]);
     $person = $st->fetch() ?: null;
     // 選んでいる相手のメッセージだけを対象に検索する（q が空なら全件）
@@ -289,9 +298,9 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
       $last->execute([$c['user_id']]);
       $lastbody = (string)($last->fetchColumn() ?: ''); ?>
       <a href="?u=<?= urlencode((string)$c['user_id']) ?>" class="<?= $sel === $c['user_id'] ? 'on' : '' ?>">
-        <div class="nm"><?php if ((int)($c['handled'] ?? 1) === 0): ?><span class="dot" title="未対応"></span><?php endif; ?><?= kcrm_h(($c['display_name'] !== '' ? $c['display_name'] : '（名前未取得）')) ?>
+        <div class="nm"><?php if ((int)($c['is_open'] ?? 0) === 1): ?><span class="dot" title="未対応"></span><?php endif; ?><?= kcrm_h(($c['display_name'] !== '' ? $c['display_name'] : '（名前未取得）')) ?>
           <?php if ((int)$c['unread'] > 0): ?><span class="badge"><?= (int)$c['unread'] ?></span><?php endif; ?>
-          <?php if ((int)($c['handled'] ?? 1) === 1): ?><span class="done-tag">済</span><?php endif; ?>
+          <?php if ((int)($c['is_open'] ?? 0) === 0): ?><span class="done-tag">済</span><?php endif; ?>
           <?php if ($c['status'] === 'blocked'): ?><span class="blocked">ブロック中</span><?php endif; ?>
         </div>
         <div class="lm"><?= kcrm_h(mb_substr($lastbody, 0, 40)) ?></div>
@@ -314,7 +323,7 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
           <div class="uid"><?= kcrm_h((string)$person['user_id']) ?></div>
         </div>
         <div class="state">
-          <?php $isopen = ((int)($person['handled'] ?? 1) === 0); ?>
+          <?php $isopen = ((int)($person['is_open'] ?? 0) === 1); ?>
           <form method="post" style="display:inline">
             <input type="hidden" name="action" value="handled">
             <input type="hidden" name="user_id" value="<?= kcrm_h((string)$person['user_id']) ?>">
