@@ -150,7 +150,9 @@ $hooks  = $db->query('SELECT * FROM webhook_log ORDER BY id DESC LIMIT 1')->fetc
 :root{--ink:#1d3038;--muted:#5f7078;--line:#dcebe9;--teal:#0a9a8f;--teal-d:#076f67;--paper:#f3faf9}
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);font-size:15px;line-height:1.7;
-  font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif}
+  font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+  height:100vh;display:flex;flex-direction:column;overflow:hidden}
+header,.notice,.err{flex:none}
 header{background:#fff;border-bottom:1px solid var(--line);padding:11px 18px;display:flex;
   align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
 header b{font-size:16px}
@@ -158,8 +160,10 @@ header b{font-size:16px}
 .meter b{color:var(--teal-d)}
 .meter.warn b{color:#c0392b}
 header a{font-size:13px;color:var(--teal-d)}
-.wrap{display:grid;grid-template-columns:250px minmax(320px,1fr) minmax(420px,520px);gap:0;height:calc(100vh - 52px)}
-.side{border-left:1px solid var(--line);background:#fff;overflow-y:auto;padding:14px 16px 40px}
+.wrap{display:grid;grid-template-columns:250px minmax(320px,1fr) minmax(420px,520px);gap:0;
+  flex:1;min-height:0}
+.side{border-left:1px solid var(--line);background:#fff;overflow-y:auto;min-height:0;
+  padding:14px 16px 40px;overscroll-behavior:contain}
 .side h4{margin:0 0 9px;font-size:13px;font-weight:900;color:var(--teal-d);letter-spacing:.03em;
   border-bottom:2px solid var(--line);padding-bottom:6px}
 .side h4 + h4{margin-top:24px}
@@ -181,7 +185,7 @@ header a{font-size:13px;color:var(--teal-d)}
 .cform input{font-size:13px;padding:6px 9px}
 .cform label{font-size:10.5px}
 @media(max-width:1100px){.wrap{grid-template-columns:250px minmax(0,1fr)}.side{grid-column:1/-1;border-left:0;border-top:1px solid var(--line)}}
-.list{border-right:1px solid var(--line);overflow-y:auto;background:#fff}
+.list{border-right:1px solid var(--line);overflow-y:auto;background:#fff;min-height:0}
 .list a{display:block;padding:11px 14px;border-bottom:1px solid var(--line);text-decoration:none;color:var(--ink)}
 .list a.on{background:#e9f6f4}
 .list .nm{font-weight:800;font-size:14px}
@@ -199,13 +203,13 @@ header a{font-size:13px;color:var(--teal-d)}
 .done-tag{font-size:11px;color:var(--muted);font-weight:700}
 .who .state{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .who .state button{padding:8px 16px;font-size:13px}
-.replybox{border-top:1px solid var(--line);background:#fff;padding:10px 16px}
+.replybox{flex:none;border-top:1px solid var(--line);background:#fff;padding:10px 16px}
 .replybox summary{font-size:13px;color:var(--muted);cursor:pointer;font-weight:700}
 .replybox[open] summary{margin-bottom:10px}
-.hint{border-top:1px solid var(--line);background:#f7fbfb;padding:10px 18px;font-size:12.5px;color:var(--muted)}
+.hint{flex:none;border-top:1px solid var(--line);background:#f7fbfb;padding:10px 18px;font-size:12.5px;color:var(--muted)}
 .hint b{color:var(--ink)}
-.pane{display:flex;flex-direction:column;min-width:0}
-.searchbar{border-bottom:1px solid var(--line);background:#fff;padding:9px 18px;display:flex;
+.pane{display:flex;flex-direction:column;min-width:0;min-height:0}
+.searchbar{flex:none;border-bottom:1px solid var(--line);background:#fff;padding:9px 18px;display:flex;
   gap:9px;align-items:center;flex-wrap:wrap}
 .searchbar input{flex:1;min-width:min(100%,200px);padding:8px 12px;font:inherit;font-size:14px;
   border:1px solid #cdd8e3;border-radius:9px}
@@ -213,7 +217,7 @@ header a{font-size:13px;color:var(--teal-d)}
 .searchbar .hit{font-size:12.5px;color:var(--muted)}
 .searchbar .hit b{color:var(--teal-d)}
 .searchbar a{font-size:12.5px;color:var(--teal-d)}
-.thread{flex:1;overflow-y:auto;padding:18px}
+.thread{flex:1;min-height:0;overflow-y:auto;padding:18px;overscroll-behavior:contain}
 .msg{position:relative}
 .msg mark{background:#ffe9a8;padding:0 1px;border-radius:2px}
 .msgtools{display:flex;gap:8px;align-items:center;margin-top:3px}
@@ -238,14 +242,19 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
 .empty{padding:40px 20px;color:var(--muted)}
 .notice{background:#e9f6f4;border:1px solid #bfe3de;padding:9px 14px;font-size:13.5px}
 .err{background:#fdecea;border:1px solid #f0b8b1;padding:9px 14px;font-size:13.5px;color:#9d2b20}
-.who{padding:12px 18px;border-bottom:1px solid var(--line);background:#fff;display:flex;
+.who{flex:none;padding:12px 18px;border-bottom:1px solid var(--line);background:#fff;display:flex;
   align-items:center;gap:12px;flex-wrap:wrap}
 .who img{width:38px;height:38px;border-radius:50%;object-fit:cover;background:#eee}
 .who .uid{font-size:11px;color:var(--muted);word-break:break-all}
 .note-form{margin-left:auto;display:flex;gap:6px;align-items:center}
 .note-form input{padding:7px 10px;font-size:13px;border:1px solid #cdd8e3;border-radius:8px;width:min(260px,40vw)}
 .note-form button{padding:7px 12px;font-size:12.5px}
-@media(max-width:760px){.wrap{grid-template-columns:1fr;height:auto}.list{max-height:38vh}}
+@media(max-width:1100px){
+  body{height:auto;display:block;overflow:visible}
+  .wrap{min-height:0}
+  .list,.side,.thread{overflow-y:visible;max-height:none}
+}
+@media(max-width:760px){.wrap{grid-template-columns:1fr}.list{max-height:38vh;overflow-y:auto}}
 </style></head><body>
 <header>
   <b><?= kcrm_h(KCRM_TITLE) ?></b>
