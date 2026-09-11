@@ -1,5 +1,7 @@
 # AIエージェントから操作する（MCP）
 
+Claude Code / Codex / Claude Desktop に対応しています。
+
 Kurage LINE CRM には **MCPサーバー**（`public/klcrm_mcp.php`）が同梱されています。
 これを登録すると、**Claude Code や Claude Desktop から、この台帳を直接読み書き**できます。
 
@@ -30,6 +32,28 @@ Kurage LINE CRM には **MCPサーバー**（`public/klcrm_mcp.php`）が同梱�
 claude mcp add klcrm -- php /path/to/klcrm_mcp.php
 claude mcp list          # klcrm: ... ✔ Connected と出れば成功
 ```
+
+### Codex CLI
+
+`~/.codex/config.toml` に追記します。
+
+```toml
+[mcp_servers.klcrm]
+command = "php"
+args = ["/path/to/klcrm_mcp.php"]
+```
+
+参照専用にするなら、続けて環境変数を書きます。
+
+```toml
+[mcp_servers.klcrm.env]
+KLCRM_MCP_READONLY = "1"
+```
+
+> **Codexの注意**: 対話モードでは問題ありませんが、**`codex exec`（非対話）はMCPのツール呼び出しが
+> `user cancelled MCP tool call` になります**（`approval_policy=never` にしても同じ）。
+> 非対話で動かしたいときは `--dangerously-bypass-approvals-and-sandbox` が要ります。
+> **サーバー側は正常に応答しているので、故障と誤診しないでください。**
 
 ### Claude Desktop
 
