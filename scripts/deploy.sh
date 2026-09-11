@@ -11,6 +11,7 @@ cd "$(dirname "$0")/.."
 : "${FTP_HOST:?FTP_HOST が未設定です}" "${FTP_USER:?}" "${FTP_PASS:?}"
 
 remote="/web/exbridge_jp/crm"
+# check.php は配布物には入れるが、当社の本番には置かない（設定状況が見えるため）
 files=(index.php webhook.php klcrm_lib.php .htaccess klcrm_config.php.example)
 if [ "${1:-}" = "--with-config" ]; then files+=(klcrm_config.php); fi
 

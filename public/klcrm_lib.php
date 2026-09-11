@@ -27,6 +27,7 @@ foreach ([
     'KLCRM_TITLE' => 'Kurage LINE CRM',
     'KLCRM_PASSWORD' => '', 'KLCRM_PASSWORD_HASH' => '',
     'KLCRM_LINE_CHANNEL_SECRET' => '', 'KLCRM_LINE_ACCESS_TOKEN' => '',
+    'KLCRM_LINE_BASIC_ID' => '',
     'KLCRM_AUTO_REPLY' => '', 'KLCRM_FOLLOW_REPLY' => '',
     'KLCRM_PUSH_FREE_PER_MONTH' => 200,
 ] as $k => $v) { if (!defined($k)) { define($k, $v); } }

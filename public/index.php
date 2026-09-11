@@ -400,8 +400,11 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
 
       <div class="hint">
         <b>返信はLINEの画面から行ってください。</b>
-        <a href="https://manager.line.biz/account/@271hokhu/chat" target="_blank" rel="noopener">LINEのチャットを開く</a>
-        ／ スマホは「LINE公式アカウント」アプリ。
+        <?php if (KLCRM_LINE_BASIC_ID !== ''): ?>
+          <a href="https://manager.line.biz/account/<?= rawurlencode(KLCRM_LINE_BASIC_ID) ?>/chat"
+             target="_blank" rel="noopener">LINEのチャットを開く</a> ／
+        <?php endif; ?>
+        スマホは「LINE公式アカウント」アプリ。
         <span>LINEから送った返信はここには残らないため、対応が終わったら上の<b>［対応済みにする］</b>を押してください。</span>
       </div>
       <div class="replybox">

@@ -19,6 +19,9 @@ define('KLCRM_PASSWORD_HASH', '');   // php -r "echo password_hash('パスワー
 // LINE Developers コンソール → チャネル基本設定 / Messaging API設定 から取得
 define('KLCRM_LINE_CHANNEL_SECRET', '');        // 署名検証に使う。必須
 define('KLCRM_LINE_ACCESS_TOKEN',   '');        // 送信・プロフィール取得に使う
+// あなたのLINE公式アカウントのベーシックID（@から始まるもの）。
+// 画面の「LINEのチャットを開く」リンク先に使う。空にするとリンクを出さない。
+define('KLCRM_LINE_BASIC_ID', '');            // 例: @271hokhu
 
 // ---- 受信時の自動返信（Reply APIなので通数を消費しません。空にすると返信しない） ----
 define('KLCRM_AUTO_REPLY', 'メッセージありがとうございます。担当者が確認して、あらためてご連絡します。');
