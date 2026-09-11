@@ -1,3 +1,7 @@
-public/kcrm_config.php
+# トークンを含む設定。リポジトリに入れない（klcrm_config.php.example を配る）
+public/klcrm_config.php
+public/*.bak
+# 顧客とのやり取りが入るデータベース
+public/klcrm_data/*.sqlite*
 public/kcrm_data/*.sqlite*
 outputs/
