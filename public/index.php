@@ -88,6 +88,8 @@ if (($_POST['action'] ?? '') === 'note') {
 }
 
 $sel = (string)($_GET['u'] ?? ($_POST['user_id'] ?? ''));
+$q     = trim((string)($_GET['q'] ?? ''));
+$total = 0;
 if ($sel !== '') {
     $db->prepare('UPDATE contacts SET unread=0 WHERE user_id=?')->execute([$sel]);
 }
@@ -99,9 +101,16 @@ if ($sel !== '') {
     $st = $db->prepare('SELECT * FROM contacts WHERE user_id=?');
     $st->execute([$sel]);
     $person = $st->fetch() ?: null;
-    $st = $db->prepare('SELECT * FROM messages WHERE user_id=? ORDER BY id ASC LIMIT 500');
-    $st->execute([$sel]);
+    // 選んでいる相手のメッセージだけを対象に検索する（q が空なら全件）
+    if ($q !== '') {
+        $st = $db->prepare('SELECT * FROM messages WHERE user_id=? AND body LIKE ? ORDER BY id ASC LIMIT 500');
+        $st->execute([$sel, '%' . str_replace(['%', '_'], ['\\%', '\\_'], $q) . '%']);
+    } else {
+        $st = $db->prepare('SELECT * FROM messages WHERE user_id=? ORDER BY id ASC LIMIT 500');
+        $st->execute([$sel]);
+    }
     $thread = $st->fetchAll();
+    $total  = (int)$db->query('SELECT COUNT(*) FROM messages WHERE user_id=' . $db->quote($sel))->fetchColumn();
 }
 $used   = kcrm_push_used_this_month();
 $free   = (int)KCRM_PUSH_FREE_PER_MONTH;
@@ -133,7 +142,22 @@ header a{font-size:13px;color:var(--teal-d)}
   font-weight:800;padding:0 7px;margin-left:6px}
 .blocked{color:#c0392b;font-size:11px;font-weight:800}
 .pane{display:flex;flex-direction:column;min-width:0}
+.searchbar{border-bottom:1px solid var(--line);background:#fff;padding:9px 18px;display:flex;
+  gap:9px;align-items:center;flex-wrap:wrap}
+.searchbar input{flex:1;min-width:min(100%,200px);padding:8px 12px;font:inherit;font-size:14px;
+  border:1px solid #cdd8e3;border-radius:9px}
+.searchbar button{padding:8px 15px;font-size:13.5px}
+.searchbar .hit{font-size:12.5px;color:var(--muted)}
+.searchbar .hit b{color:var(--teal-d)}
+.searchbar a{font-size:12.5px;color:var(--teal-d)}
 .thread{flex:1;overflow-y:auto;padding:18px}
+.msg{position:relative}
+.msg mark{background:#ffe9a8;padding:0 1px;border-radius:2px}
+.msgtools{display:flex;gap:8px;align-items:center;margin-top:3px}
+.copy{background:none;border:0;padding:2px 6px;font-size:11px;font-weight:700;color:var(--teal-d);
+  cursor:pointer;border-radius:5px;font-family:inherit;opacity:.55}
+.copy:hover{opacity:1;background:#e9f6f4}
+.copy.done{color:#fff;background:var(--teal);opacity:1}
 .msg{max-width:72%;margin-bottom:12px;padding:9px 13px;border-radius:14px;white-space:pre-wrap;word-break:break-word}
 .in{background:#fff;border:1px solid var(--line)}
 .out{background:#dff3ef;margin-left:auto}
@@ -218,11 +242,34 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
         </form>
       </div>
 
+      <form class="searchbar" method="get">
+        <input type="hidden" name="u" value="<?= kcrm_h((string)$person['user_id']) ?>">
+        <input name="q" value="<?= kcrm_h($q) ?>" placeholder="この相手のメッセージを検索（例: 見積 / 日程）">
+        <button type="submit">検索</button>
+        <?php if ($q !== ''): ?>
+          <span class="hit"><b><?= count($thread) ?></b>件 / 全<?= $total ?>件</span>
+          <a href="?u=<?= urlencode((string)$person['user_id']) ?>">解除</a>
+        <?php else: ?>
+          <span class="hit">全<?= $total ?>件</span>
+        <?php endif; ?>
+        <button type="button" class="sub" onclick="copyAll()">全文をコピー</button>
+      </form>
+
       <div class="thread" id="thread">
         <?php foreach ($thread as $m):
           $cls = $m['kind'] === 'system' ? 'sys' : ($m['direction'] === 'in' ? 'in' : 'out'); ?>
-          <div class="msg <?= $cls ?>"><?= kcrm_h((string)$m['body']) ?>
-            <div class="meta"><?= kcrm_h((string)$m['created_at']) ?><?= ((int)$m['billed'] === 1) ? ' ・通数1' : '' ?></div>
+          <?php
+            $raw  = (string)$m['body'];
+            $disp = kcrm_h($raw);
+            if ($q !== '') {   // 検索語を目立たせる（HTMLエスケープ後の文字列に対して行う）
+                $disp = preg_replace('/' . preg_quote(kcrm_h($q), '/') . '/iu', '<mark>$0</mark>', $disp);
+            }
+          ?>
+          <div class="msg <?= $cls ?>"><?= $disp ?>
+            <div class="msgtools">
+              <span class="meta"><?= kcrm_h((string)$m['created_at']) ?><?= ((int)$m['billed'] === 1) ? ' ・通数1' : '' ?></span>
+              <button type="button" class="copy" data-t="<?= kcrm_h($raw) ?>" onclick="copyOne(this)">コピー</button>
+            </div>
           </div>
         <?php endforeach; ?>
       </div>
@@ -245,5 +292,26 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
     <?php endif; ?>
   </div>
 </div>
-<script>var t=document.getElementById('thread'); if(t){t.scrollTop=t.scrollHeight;}</script>
+<script>
+var t=document.getElementById('thread'); if(t){t.scrollTop=t.scrollHeight;}
+function flash(btn, label){
+  var old = btn.textContent; btn.textContent = label; btn.classList.add('done');
+  setTimeout(function(){ btn.textContent = old; btn.classList.remove('done'); }, 1400);
+}
+function copyOne(btn){
+  navigator.clipboard.writeText(btn.dataset.t).then(function(){ flash(btn, 'コピーしました'); });
+}
+function copyAll(){
+  var out = [];
+  document.querySelectorAll('#thread .msg').forEach(function(m){
+    var b = m.querySelector('.copy'); if(!b) return;
+    var who = m.classList.contains('in') ? '相手' : (m.classList.contains('out') ? '自分' : '記録');
+    var tm  = (m.querySelector('.meta')||{}).textContent || '';
+    out.push('[' + who + ' ' + tm.trim() + ']\n' + b.dataset.t);
+  });
+  navigator.clipboard.writeText(out.join('\n\n')).then(function(){
+    var b = document.querySelector('.searchbar .sub'); if(b) flash(b, 'コピーしました');
+  });
+}
+</script>
 </body></html>
