@@ -1,0 +1,30 @@
+<?php
+/**
+ * Kurage LINE CRM (klcrm) の設定。
+ * このファイルを klcrm_config.php にコピーして編集してください（.example のままでは読み込まれません）。
+ *
+ * 【この製品の考え方】
+ * LINE公式アカウントに届いた相談を、送信者ごとに記録して、履歴を見ながら返す窓口です。
+ * 受信（Reply）は無料、こちらから送るPushは通数課金なので、画面に残数の注意を出します。
+ */
+
+// ---- 画面 ----
+define('KLCRM_TITLE', 'Kurage LINE CRM');
+
+// ---- ログイン（どちらか一方。HASHがあればそちらが優先） ----
+define('KLCRM_PASSWORD',      '');   // 平文（手軽・検証用）
+define('KLCRM_PASSWORD_HASH', '');   // php -r "echo password_hash('パスワード', PASSWORD_DEFAULT);"
+
+// ---- LINE Messaging API ----
+// LINE Developers コンソール → チャネル基本設定 / Messaging API設定 から取得
+define('KLCRM_LINE_CHANNEL_SECRET', '');        // 署名検証に使う。必須
+define('KLCRM_LINE_ACCESS_TOKEN',   '');        // 送信・プロフィール取得に使う
+
+// ---- 受信時の自動返信（Reply APIなので通数を消費しません。空にすると返信しない） ----
+define('KLCRM_AUTO_REPLY', 'メッセージありがとうございます。担当者が確認して、あらためてご連絡します。');
+
+// ---- 友だち追加時のあいさつ（Reply API・無料。空にすると送らない） ----
+define('KLCRM_FOLLOW_REPLY', '友だち追加ありがとうございます。ITやAIのご相談を、このトークでそのままお送りください。');
+
+// ---- 無料枠の目安（コミュニケーションプランは月200通。Pushだけが対象） ----
+define('KLCRM_PUSH_FREE_PER_MONTH', 200);

@@ -1,4 +1,4 @@
-# Kurage CRM (kcrm)
+# Kurage LINE CRM (klcrm)
 
 LINE公式アカウントに届いた相談を、送信者(userId)ごとに記録して、履歴を見ながら返す窓口。
 
@@ -8,7 +8,7 @@ LINE公式アカウントに届いた相談を、送信者(userId)ごとに記�
 
 ## 設置
 
-1. `public/kcrm_config.php.example` を `kcrm_config.php` にコピーして、
+1. `public/klcrm_config.php.example` を `klcrm_config.php` にコピーして、
    パスワードハッシュ・チャネルシークレット・アクセストークンを入れる
 2. `set -a; . /home/kojima/work/aixec/.env; set +a` のあと `bash scripts/deploy.sh --with-config`
 3. LINE Developers の「Webhook URL」に webhook.php のURLを入れ、**「Webhookの利用」をオンにする**
@@ -18,7 +18,7 @@ LINE公式アカウントに届いた相談を、送信者(userId)ごとに記�
 - **`.htaccess` に `AddHandler php-script .php`**。これが無いと既定の **PHP 5.6** で動き、
   `??` や `declare(strict_types)` が構文エラーになる。書式は
   `php-script`(=PHP8系) / `php7.4-script` / `php5.6-script`。
-- SQLite と `kcrm_config.php` は `.htaccess` で遮断する（403になることを毎回実測する）。
+- SQLite と `klcrm_config.php` は `.htaccess` で遮断する（403になることを毎回実測する）。
   加えてDBのファイル名はチャネルシークレットから導出して推測不能にしてある。
 
 ## お金の話（設計の根拠）

@@ -1,26 +1,26 @@
 <?php
 /**
- * Kurage CRM (kcrm) — 画面。
+ * Kurage CRM (klcrm) — 画面。
  * LINE公式アカウントに届いた相談を、送信者ごとに一覧・履歴で見て、返信する。
  *
  * 返信は Push API を使うので通数課金の対象。今月の使用数を常に画面へ出す。
  */
 
 declare(strict_types=1);
-require_once __DIR__ . '/kcrm_lib.php';
+require_once __DIR__ . '/klcrm_lib.php';
 
 session_start();
 
 /* ---------------- ログイン ---------------- */
 $login_error = '';
-if (isset($_POST['kcrm_pw'])) {
-    $pw = (string)$_POST['kcrm_pw'];
-    $ok = KCRM_PASSWORD_HASH !== ''
-        ? password_verify($pw, KCRM_PASSWORD_HASH)
-        : (KCRM_PASSWORD !== '' && hash_equals(KCRM_PASSWORD, $pw));
+if (isset($_POST['klcrm_pw'])) {
+    $pw = (string)$_POST['klcrm_pw'];
+    $ok = KLCRM_PASSWORD_HASH !== ''
+        ? password_verify($pw, KLCRM_PASSWORD_HASH)
+        : (KLCRM_PASSWORD !== '' && hash_equals(KLCRM_PASSWORD, $pw));
     if ($ok) {
         session_regenerate_id(true);
-        $_SESSION['kcrm_ok'] = 1;
+        $_SESSION['klcrm_ok'] = 1;
         header('Location: ' . strtok((string)$_SERVER['REQUEST_URI'], '?'));
         exit;
     }
@@ -29,12 +29,12 @@ if (isset($_POST['kcrm_pw'])) {
 }
 if (isset($_GET['logout'])) { session_destroy(); header('Location: ./'); exit; }
 
-if (empty($_SESSION['kcrm_ok'])) {
-    $configured = (KCRM_PASSWORD !== '' || KCRM_PASSWORD_HASH !== '');
+if (empty($_SESSION['klcrm_ok'])) {
+    $configured = (KLCRM_PASSWORD !== '' || KLCRM_PASSWORD_HASH !== '');
     ?><!doctype html><html lang="ja"><head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="robots" content="noindex,nofollow">
-    <title><?= kcrm_h(KCRM_TITLE) ?></title>
+    <title><?= klcrm_h(KLCRM_TITLE) ?></title>
     <style>
     body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f3faf9;
       font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;color:#1d3038}
@@ -45,20 +45,20 @@ if (empty($_SESSION['kcrm_ok'])) {
     .err{color:#c0392b;font-size:13px;margin-bottom:10px}
     </style></head><body>
     <form method="post">
-      <h1><?= kcrm_h(KCRM_TITLE) ?></h1>
+      <h1><?= klcrm_h(KLCRM_TITLE) ?></h1>
       <p>LINEに届いた相談を見る窓口です。</p>
-      <?php if ($login_error !== ''): ?><div class="err"><?= kcrm_h($login_error) ?></div><?php endif; ?>
+      <?php if ($login_error !== ''): ?><div class="err"><?= klcrm_h($login_error) ?></div><?php endif; ?>
       <?php if (!$configured): ?>
-        <div class="err">kcrm_config.php にパスワードが設定されていません。</div>
+        <div class="err">klcrm_config.php にパスワードが設定されていません。</div>
       <?php endif; ?>
-      <input type="password" name="kcrm_pw" placeholder="パスワード" autofocus required>
+      <input type="password" name="klcrm_pw" placeholder="パスワード" autofocus required>
       <button type="submit">開く</button>
     </form></body></html><?php
     exit;
 }
 
 /* ---------------- 操作 ---------------- */
-$db     = kcrm_db();
+$db     = klcrm_db();
 $notice = '';
 $error  = '';
 
@@ -68,14 +68,14 @@ if (($_POST['action'] ?? '') === 'send') {
     if ($uid === '' || $text === '') {
         $error = '送信先と本文が必要です。';
     } else {
-        [$code, $res] = kcrm_push($uid, $text);
+        [$code, $res] = klcrm_push($uid, $text);
         if ($code === 200) {
-            kcrm_add_message($uid, 'out', 'text', $text, '', 1);   // billed=1（通数を消費）
+            klcrm_add_message($uid, 'out', 'text', $text, '', 1);   // billed=1（通数を消費）
             $notice = '送信しました（今月の無料枠を1通消費しました）。';
         } else {
             $d = json_decode($res, true);
             $error = '送信できませんでした（HTTP ' . $code . '）：'
-                   . kcrm_h((string)($d['message'] ?? mb_substr($res, 0, 200)));
+                   . klcrm_h((string)($d['message'] ?? mb_substr($res, 0, 200)));
         }
     }
 }
@@ -88,7 +88,7 @@ if (($_POST['action'] ?? '') === 'handled') {
     if ($to) {
         $db->prepare("UPDATE contacts SET handled_at=?, handled_msg_id =
               IFNULL((SELECT MAX(m.id) FROM messages m WHERE m.user_id=? AND m.direction='in'), 0)
-            WHERE user_id=?")->execute([kcrm_now(), $uid, $uid]);
+            WHERE user_id=?")->execute([klcrm_now(), $uid, $uid]);
     } else {
         $db->prepare("UPDATE contacts SET handled_at='', handled_msg_id=0 WHERE user_id=?")->execute([$uid]);
     }
@@ -125,15 +125,15 @@ if ($sel !== '') {
 }
 
 $filter = (string)($_GET['f'] ?? '');
-$open_sql = '(' . KCRM_OPEN_SQL . ') AS is_open';
+$open_sql = '(' . KLCRM_OPEN_SQL . ') AS is_open';
 $contacts = $filter === 'open'
-    ? $db->query("SELECT *, $open_sql FROM contacts c WHERE " . KCRM_OPEN_SQL . " ORDER BY last_seen DESC")->fetchAll()
+    ? $db->query("SELECT *, $open_sql FROM contacts c WHERE " . KLCRM_OPEN_SQL . " ORDER BY last_seen DESC")->fetchAll()
     : $db->query("SELECT *, $open_sql FROM contacts c ORDER BY is_open DESC, last_seen DESC")->fetchAll();
-$open_n = kcrm_open_count();
+$open_n = klcrm_open_count();
 $thread   = [];
 $person   = null;
 if ($sel !== '') {
-    $st = $db->prepare("SELECT *, (" . KCRM_OPEN_SQL . ") AS is_open FROM contacts c WHERE user_id=?");
+    $st = $db->prepare("SELECT *, (" . KLCRM_OPEN_SQL . ") AS is_open FROM contacts c WHERE user_id=?");
     $st->execute([$sel]);
     $person = $st->fetch() ?: null;
     // 選んでいる相手のメッセージだけを対象に検索する（q が空なら全件）
@@ -147,14 +147,14 @@ if ($sel !== '') {
     $thread = $st->fetchAll();
     $total  = (int)$db->query('SELECT COUNT(*) FROM messages WHERE user_id=' . $db->quote($sel))->fetchColumn();
 }
-$used   = kcrm_push_used_this_month();
-$free   = (int)KCRM_PUSH_FREE_PER_MONTH;
-$ready  = (KCRM_LINE_CHANNEL_SECRET !== '' && KCRM_LINE_ACCESS_TOKEN !== '');
+$used   = klcrm_push_used_this_month();
+$free   = (int)KLCRM_PUSH_FREE_PER_MONTH;
+$ready  = (KLCRM_LINE_CHANNEL_SECRET !== '' && KLCRM_LINE_ACCESS_TOKEN !== '');
 $hooks  = $db->query('SELECT * FROM webhook_log ORDER BY id DESC LIMIT 1')->fetch() ?: null;
 ?><!doctype html><html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<title><?= kcrm_h(KCRM_TITLE) ?></title>
+<title><?= klcrm_h(KLCRM_TITLE) ?></title>
 <style>
 :root{--ink:#1d3038;--muted:#5f7078;--line:#dcebe9;--teal:#0a9a8f;--teal-d:#076f67;--paper:#f3faf9}
 *{box-sizing:border-box}
@@ -278,15 +278,15 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
 @media(max-width:760px){.wrap{grid-template-columns:1fr}.list{max-height:38vh;overflow-y:auto}}
 </style></head><body>
 <header>
-  <b><?= kcrm_h(KCRM_TITLE) ?></b>
+  <b><?= klcrm_h(KLCRM_TITLE) ?></b>
   <span class="open-n <?= $open_n === 0 ? 'zero' : '' ?>">未対応 <?= $open_n ?>件</span>
   <span class="meter <?= $used >= $free ? 'warn' : '' ?>">
     今月こちらから送った数 <b><?= $used ?></b> / <?= $free ?> 通（無料枠）
     <?php if ($used >= $free): ?>— 超過分は課金されます<?php endif; ?>
   </span>
-  <?php if (!$ready): ?><span class="blocked">LINEの設定が未完了（kcrm_config.php）</span><?php endif; ?>
+  <?php if (!$ready): ?><span class="blocked">LINEの設定が未完了（klcrm_config.php）</span><?php endif; ?>
   <?php if ($hooks): ?>
-    <span class="meter">最終受信 <?= kcrm_h((string)$hooks['received_at']) ?>
+    <span class="meter">最終受信 <?= klcrm_h((string)$hooks['received_at']) ?>
       <?= ((int)$hooks['ok'] === 1) ? '' : '（署名エラー）' ?></span>
   <?php endif; ?>
   <?php if ($person): ?>
@@ -298,7 +298,7 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
   <a href="?logout=1">ログアウト</a>
 </header>
 
-<?php if ($notice !== ''): ?><div class="notice"><?= kcrm_h($notice) ?></div><?php endif; ?>
+<?php if ($notice !== ''): ?><div class="notice"><?= klcrm_h($notice) ?></div><?php endif; ?>
 <?php if ($error !== ''): ?><div class="err"><?= $error ?></div><?php endif; ?>
 
 <div class="wrap">
@@ -315,13 +315,13 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
       $last->execute([$c['user_id']]);
       $lastbody = (string)($last->fetchColumn() ?: ''); ?>
       <a href="?u=<?= urlencode((string)$c['user_id']) ?>" class="<?= $sel === $c['user_id'] ? 'on' : '' ?>">
-        <div class="nm"><?php if ((int)($c['is_open'] ?? 0) === 1): ?><span class="dot" title="未対応"></span><?php endif; ?><?= kcrm_h(($c['display_name'] !== '' ? $c['display_name'] : '（名前未取得）')) ?>
+        <div class="nm"><?php if ((int)($c['is_open'] ?? 0) === 1): ?><span class="dot" title="未対応"></span><?php endif; ?><?= klcrm_h(($c['display_name'] !== '' ? $c['display_name'] : '（名前未取得）')) ?>
           <?php if ((int)$c['unread'] > 0): ?><span class="badge"><?= (int)$c['unread'] ?></span><?php endif; ?>
           <?php if ((int)($c['is_open'] ?? 0) === 0): ?><span class="done-tag">済</span><?php endif; ?>
           <?php if ($c['status'] === 'blocked'): ?><span class="blocked">ブロック中</span><?php endif; ?>
         </div>
-        <div class="lm"><?= kcrm_h(mb_substr($lastbody, 0, 40)) ?></div>
-        <div class="lm"><?= kcrm_h((string)$c['last_seen']) ?></div>
+        <div class="lm"><?= klcrm_h(mb_substr($lastbody, 0, 40)) ?></div>
+        <div class="lm"><?= klcrm_h((string)$c['last_seen']) ?></div>
       </a>
     <?php endforeach; ?>
   </div>
@@ -332,18 +332,18 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
     <?php else: ?>
       <div class="who" id="top">
         <?php if ($person['picture_url'] !== ''): ?>
-          <img src="<?= kcrm_h((string)$person['picture_url']) ?>" alt="">
+          <img src="<?= klcrm_h((string)$person['picture_url']) ?>" alt="">
         <?php endif; ?>
         <div>
-          <b><?= kcrm_h(($person['display_name'] !== '' ? $person['display_name'] : '（名前未取得）')) ?></b>
+          <b><?= klcrm_h(($person['display_name'] !== '' ? $person['display_name'] : '（名前未取得）')) ?></b>
           <?php if ($person['status'] === 'blocked'): ?><span class="blocked">ブロック中</span><?php endif; ?>
-          <div class="uid"><?= kcrm_h((string)$person['user_id']) ?></div>
+          <div class="uid"><?= klcrm_h((string)$person['user_id']) ?></div>
         </div>
         <div class="state">
           <?php $isopen = ((int)($person['is_open'] ?? 0) === 1); ?>
           <form method="post" style="display:inline">
             <input type="hidden" name="action" value="handled">
-            <input type="hidden" name="user_id" value="<?= kcrm_h((string)$person['user_id']) ?>">
+            <input type="hidden" name="user_id" value="<?= klcrm_h((string)$person['user_id']) ?>">
             <input type="hidden" name="to" value="<?= $isopen ? '1' : '0' ?>">
             <button type="submit" class="<?= $isopen ? '' : 'sub' ?>">
               <?= $isopen ? '✓ 対応済みにする' : '未対応に戻す' ?>
@@ -353,8 +353,8 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
       </div>
 
       <form class="searchbar" method="get">
-        <input type="hidden" name="u" value="<?= kcrm_h((string)$person['user_id']) ?>">
-        <input name="q" value="<?= kcrm_h($q) ?>" placeholder="この相手のメッセージを検索（例: 見積 / 日程）">
+        <input type="hidden" name="u" value="<?= klcrm_h((string)$person['user_id']) ?>">
+        <input name="q" value="<?= klcrm_h($q) ?>" placeholder="この相手のメッセージを検索（例: 見積 / 日程）">
         <button type="submit">検索</button>
         <?php if ($q !== ''): ?>
           <span class="hit"><b><?= count($thread) ?></b>件 / 全<?= $total ?>件</span>
@@ -370,15 +370,15 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
           $cls = $m['kind'] === 'system' ? 'sys' : ($m['direction'] === 'in' ? 'in' : 'out'); ?>
           <?php
             $raw  = (string)$m['body'];
-            $disp = kcrm_h($raw);
+            $disp = klcrm_h($raw);
             if ($q !== '') {   // 検索語を目立たせる（HTMLエスケープ後の文字列に対して行う）
-                $disp = preg_replace('/' . preg_quote(kcrm_h($q), '/') . '/iu', '<mark>$0</mark>', $disp);
+                $disp = preg_replace('/' . preg_quote(klcrm_h($q), '/') . '/iu', '<mark>$0</mark>', $disp);
             }
           ?>
           <div class="msg <?= $cls ?>"><?= $disp ?>
             <div class="msgtools">
-              <span class="meta"><?= kcrm_h((string)$m['created_at']) ?><?= ((int)$m['billed'] === 1) ? ' ・通数1' : '' ?></span>
-              <button type="button" class="copy" data-t="<?= kcrm_h($raw) ?>" onclick="copyOne(this)">コピー</button>
+              <span class="meta"><?= klcrm_h((string)$m['created_at']) ?><?= ((int)$m['billed'] === 1) ? ' ・通数1' : '' ?></span>
+              <button type="button" class="copy" data-t="<?= klcrm_h($raw) ?>" onclick="copyOne(this)">コピー</button>
             </div>
           </div>
         <?php endforeach; ?>
@@ -398,7 +398,7 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
             <summary>ここから送ることもできます（記録は残りますが、無料枠を1通消費します）</summary>
             <form method="post">
               <input type="hidden" name="action" value="send">
-              <input type="hidden" name="user_id" value="<?= kcrm_h((string)$person['user_id']) ?>">
+              <input type="hidden" name="user_id" value="<?= klcrm_h((string)$person['user_id']) ?>">
               <textarea name="text" placeholder="返信を書く" required></textarea>
               <div class="row">
                 <button type="submit">送信する</button>
@@ -417,7 +417,7 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
       <span class="sub2">打ち合わせ・条件・次にやること</span></h4>
     <form method="post" class="noteform">
       <input type="hidden" name="action" value="note_save">
-      <input type="hidden" name="user_id" value="<?= kcrm_h((string)$person['user_id']) ?>">
+      <input type="hidden" name="user_id" value="<?= klcrm_h((string)$person['user_id']) ?>">
       <textarea name="note" id="noteta" placeholder="ここに書き足していきます。
 
 9/11 電話
@@ -425,7 +425,7 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
 ・次回までに構成案を送る
 
 9/12 訪問
-・…"><?= kcrm_h((string)($person['note'] ?? '')) ?></textarea>
+・…"><?= klcrm_h((string)($person['note'] ?? '')) ?></textarea>
       <div class="noterow">
         <button type="submit">ノートを保存</button>
         <button type="button" class="sub" onclick="stampDate()">日付を入れる</button>
@@ -435,10 +435,10 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
 
     <h4 id="contact">連絡先<a class="back" href="#top">↑ メッセージへ</a>
       <span class="sub2">補助情報</span></h4>
-    <div class="lineid">LINE表示名: <?= kcrm_h((string)$person['display_name']) ?><br>userId: <?= kcrm_h((string)$person['user_id']) ?></div>
+    <div class="lineid">LINE表示名: <?= klcrm_h((string)$person['display_name']) ?><br>userId: <?= klcrm_h((string)$person['user_id']) ?></div>
     <form method="post" class="cform">
       <input type="hidden" name="action" value="contact">
-      <input type="hidden" name="user_id" value="<?= kcrm_h((string)$person['user_id']) ?>">
+      <input type="hidden" name="user_id" value="<?= klcrm_h((string)$person['user_id']) ?>">
       <?php foreach ([
         'company'     => ['会社名・団体名', 'text'],
         'person_name' => ['お名前（本名）', 'text'],
@@ -449,8 +449,8 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
         'source'      => ['きっかけ', 'text'],
       ] as $k => $meta): ?>
         <div class="fld">
-          <label for="f_<?= $k ?>"><?= kcrm_h($meta[0]) ?></label>
-          <input id="f_<?= $k ?>" type="<?= $meta[1] ?>" name="<?= $k ?>" value="<?= kcrm_h((string)($person[$k] ?? '')) ?>">
+          <label for="f_<?= $k ?>"><?= klcrm_h($meta[0]) ?></label>
+          <input id="f_<?= $k ?>" type="<?= $meta[1] ?>" name="<?= $k ?>" value="<?= klcrm_h((string)($person[$k] ?? '')) ?>">
         </div>
       <?php endforeach; ?>
       <button type="submit" class="sub">連絡先を保存</button>

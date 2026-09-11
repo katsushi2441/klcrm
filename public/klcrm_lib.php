@@ -1,6 +1,6 @@
 <?php
 /**
- * Kurage CRM (kcrm) — 共通処理。
+ * Kurage LINE CRM (klcrm) — 共通処理。
  *
  * LINE公式アカウントに届いた相談を、送信者(userId)ごとに記録する窓口の土台。
  * 画面(index.php)とWebhook(webhook.php)の両方から読み込む。
@@ -19,30 +19,40 @@
 
 declare(strict_types=1);
 
-define('KCRM_DIR', __DIR__);
-$__cfg = KCRM_DIR . '/kcrm_config.php';
+define('KLCRM_DIR', __DIR__);
+$__cfg = KLCRM_DIR . '/klcrm_config.php';
 if (is_file($__cfg)) { require_once $__cfg; }
 
 foreach ([
-    'KCRM_TITLE' => 'Kurage CRM',
-    'KCRM_PASSWORD' => '', 'KCRM_PASSWORD_HASH' => '',
-    'KCRM_LINE_CHANNEL_SECRET' => '', 'KCRM_LINE_ACCESS_TOKEN' => '',
-    'KCRM_AUTO_REPLY' => '', 'KCRM_FOLLOW_REPLY' => '',
-    'KCRM_PUSH_FREE_PER_MONTH' => 200,
+    'KLCRM_TITLE' => 'Kurage LINE CRM',
+    'KLCRM_PASSWORD' => '', 'KLCRM_PASSWORD_HASH' => '',
+    'KLCRM_LINE_CHANNEL_SECRET' => '', 'KLCRM_LINE_ACCESS_TOKEN' => '',
+    'KLCRM_AUTO_REPLY' => '', 'KLCRM_FOLLOW_REPLY' => '',
+    'KLCRM_PUSH_FREE_PER_MONTH' => 200,
 ] as $k => $v) { if (!defined($k)) { define($k, $v); } }
 
-/** SQLite。web直下に置くので .htaccess で必ず遮断する（kcrm_data/.htaccess） */
-function kcrm_db(): PDO
+/** SQLite。web直下に置くので .htaccess で必ず遮断する（klcrm_data/.htaccess） */
+function klcrm_db(): PDO
 {
     static $pdo = null;
     if ($pdo instanceof PDO) { return $pdo; }
-    $dir = KCRM_DIR . '/kcrm_data';
+    $dir = KLCRM_DIR . '/klcrm_data';
     if (!is_dir($dir)) { @mkdir($dir, 0700, true); }
     // .htaccess が効かない環境でもURLを当てられないよう、ファイル名を秘密から導出する。
     // （.htaccess による遮断が本命。これは二重の備え）
-    $seed = KCRM_LINE_CHANNEL_SECRET !== '' ? KCRM_LINE_CHANNEL_SECRET : KCRM_PASSWORD_HASH . KCRM_PASSWORD;
+    $seed = KLCRM_LINE_CHANNEL_SECRET !== '' ? KLCRM_LINE_CHANNEL_SECRET : KLCRM_PASSWORD_HASH . KLCRM_PASSWORD;
+    // 名前を kcrm → klcrm に変えたが、DBのファイル名は変えない。
+    // ハッシュの元文字列を変えると既存のDBが見つからなくなり、記録が消えたように見えるため。
     $suffix = $seed !== '' ? substr(hash('sha256', 'kcrm-db|' . $seed), 0, 16) : 'local';
-    $pdo = new PDO('sqlite:' . $dir . '/kcrm_' . $suffix . '.sqlite');
+    $file = $dir . '/kcrm_' . $suffix . '.sqlite';
+    // 旧フォルダ（kcrm_data）に残っていれば引き継ぐ
+    $old = dirname($dir) . '/kcrm_data/kcrm_' . $suffix . '.sqlite';
+    if (!is_file($file) && is_file($old)) {
+        foreach (['', '-wal', '-shm'] as $ext) {
+            if (is_file($old . $ext)) { @rename($old . $ext, $file . $ext); }
+        }
+    }
+    $pdo = new PDO('sqlite:' . $file);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
     $pdo->exec('PRAGMA journal_mode=WAL');
@@ -157,7 +167,7 @@ function kcrm_db(): PDO
     return $pdo;
 }
 
-function kcrm_now(): string
+function klcrm_now(): string
 {
     return (new DateTimeImmutable('now', new DateTimeZone('Asia/Tokyo')))->format('Y-m-d H:i:s');
 }
@@ -167,19 +177,19 @@ function kcrm_now(): string
  * チャネルシークレットでHMAC-SHA256して、X-Line-Signature と一致するかを見る。
  * これを省くと、誰でも偽のイベントを投げ込めてしまう（顧客データを汚染される）。
  */
-function kcrm_verify_signature(string $body, string $signature): bool
+function klcrm_verify_signature(string $body, string $signature): bool
 {
-    if (KCRM_LINE_CHANNEL_SECRET === '' || $signature === '') { return false; }
-    $expected = base64_encode(hash_hmac('sha256', $body, KCRM_LINE_CHANNEL_SECRET, true));
+    if (KLCRM_LINE_CHANNEL_SECRET === '' || $signature === '') { return false; }
+    $expected = base64_encode(hash_hmac('sha256', $body, KLCRM_LINE_CHANNEL_SECRET, true));
     return hash_equals($expected, $signature);
 }
 
 /** LINE APIを叩く。失敗しても例外にせず、[HTTPコード, 本文] を返す（Webhookは必ず200で返したいため） */
-function kcrm_line_api(string $method, string $path, ?array $payload = null): array
+function klcrm_line_api(string $method, string $path, ?array $payload = null): array
 {
-    if (KCRM_LINE_ACCESS_TOKEN === '') { return [0, 'アクセストークンが未設定です']; }
+    if (KLCRM_LINE_ACCESS_TOKEN === '') { return [0, 'アクセストークンが未設定です']; }
     $ch = curl_init('https://api.line.me' . $path);
-    $headers = ['Authorization: Bearer ' . KCRM_LINE_ACCESS_TOKEN];
+    $headers = ['Authorization: Bearer ' . KLCRM_LINE_ACCESS_TOKEN];
     $opts = [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_CUSTOMREQUEST => $method,
@@ -198,43 +208,43 @@ function kcrm_line_api(string $method, string $path, ?array $payload = null): ar
 }
 
 /** 返信（無料）。replyTokenは1回きり・発行から短時間しか使えない */
-function kcrm_reply(string $reply_token, string $text): array
+function klcrm_reply(string $reply_token, string $text): array
 {
-    return kcrm_line_api('POST', '/v2/bot/message/reply', [
+    return klcrm_line_api('POST', '/v2/bot/message/reply', [
         'replyToken' => $reply_token,
         'messages' => [['type' => 'text', 'text' => mb_substr($text, 0, 4900)]],
     ]);
 }
 
 /** こちらから送る（通数課金） */
-function kcrm_push(string $user_id, string $text): array
+function klcrm_push(string $user_id, string $text): array
 {
-    return kcrm_line_api('POST', '/v2/bot/message/push', [
+    return klcrm_line_api('POST', '/v2/bot/message/push', [
         'to' => $user_id,
         'messages' => [['type' => 'text', 'text' => mb_substr($text, 0, 4900)]],
     ]);
 }
 
 /** 表示名とアイコン。友だちでなくなると取れなくなるので、取れたときだけ更新する */
-function kcrm_refresh_profile(string $user_id, bool $force = false): void
+function klcrm_refresh_profile(string $user_id, bool $force = false): void
 {
-    $db = kcrm_db();
+    $db = klcrm_db();
     $row = $db->prepare('SELECT profile_checked FROM contacts WHERE user_id=?');
     $row->execute([$user_id]);
     $checked = (string)($row->fetchColumn() ?: '');
     if (!$force && $checked !== '' && strtotime($checked) > time() - 86400) { return; }
-    [$code, $res] = kcrm_line_api('GET', '/v2/bot/profile/' . rawurlencode($user_id));
+    [$code, $res] = klcrm_line_api('GET', '/v2/bot/profile/' . rawurlencode($user_id));
     if ($code !== 200) { return; }
     $d = json_decode($res, true);
     if (!is_array($d)) { return; }
     $st = $db->prepare('UPDATE contacts SET display_name=?, picture_url=?, profile_checked=? WHERE user_id=?');
-    $st->execute([(string)($d['displayName'] ?? ''), (string)($d['pictureUrl'] ?? ''), kcrm_now(), $user_id]);
+    $st->execute([(string)($d['displayName'] ?? ''), (string)($d['pictureUrl'] ?? ''), klcrm_now(), $user_id]);
 }
 
-function kcrm_touch_contact(string $user_id, string $status = ''): void
+function klcrm_touch_contact(string $user_id, string $status = ''): void
 {
-    $db = kcrm_db();
-    $now = kcrm_now();
+    $db = klcrm_db();
+    $now = klcrm_now();
     $st = $db->prepare('INSERT INTO contacts(user_id, first_seen, last_seen) VALUES(?,?,?)
                         ON CONFLICT(user_id) DO UPDATE SET last_seen=excluded.last_seen');
     $st->execute([$user_id, $now, $now]);
@@ -243,13 +253,13 @@ function kcrm_touch_contact(string $user_id, string $status = ''): void
     }
 }
 
-function kcrm_add_message(string $user_id, string $direction, string $kind, string $body,
+function klcrm_add_message(string $user_id, string $direction, string $kind, string $body,
                           string $line_message_id = '', int $billed = 0): void
 {
-    $db = kcrm_db();
+    $db = klcrm_db();
     $db->prepare('INSERT INTO messages(user_id,direction,kind,body,line_message_id,billed,created_at)
                   VALUES(?,?,?,?,?,?,?)')
-       ->execute([$user_id, $direction, $kind, $body, $line_message_id, $billed, kcrm_now()]);
+       ->execute([$user_id, $direction, $kind, $body, $line_message_id, $billed, klcrm_now()]);
     if ($direction === 'in') {
         // 未読の数だけ更新する。未対応かどうかは handled_at との比較で毎回求めるので、
         // ここで状態を書く必要がない（書き損ねても壊れない）。
@@ -258,9 +268,9 @@ function kcrm_add_message(string $user_id, string $direction, string $kind, stri
 }
 
 /** 今月こちらから送った通数（無料枠の消費分）。画面に出して使い切り事故を防ぐ */
-function kcrm_push_used_this_month(): int
+function klcrm_push_used_this_month(): int
 {
-    $db = kcrm_db();
+    $db = klcrm_db();
     $m = (new DateTimeImmutable('now', new DateTimeZone('Asia/Tokyo')))->format('Y-m');
     $st = $db->prepare("SELECT COUNT(*) FROM messages WHERE billed=1 AND substr(created_at,1,7)=?");
     $st->execute([$m]);
@@ -269,19 +279,19 @@ function kcrm_push_used_this_month(): int
 
 /** 未対応の判定式。ここ1か所だけに置く（画面と件数で食い違わせないため）。
  *  「最後に相手から届いた時刻」が「最後に対応済みを押した時刻」より後なら未対応。 */
-define('KCRM_OPEN_SQL',
+define('KLCRM_OPEN_SQL',
     "IFNULL((SELECT MAX(m.id) FROM messages m WHERE m.user_id = c.user_id AND m.direction = 'in'), 0)"
     . " > IFNULL(c.handled_msg_id, 0)");
 
 /** 未対応の件数。画面の主役はここ（返信そのものはLINE側で行う） */
-function kcrm_open_count(): int
+function klcrm_open_count(): int
 {
-    return (int)kcrm_db()->query(
-        "SELECT COUNT(*) FROM contacts c WHERE " . KCRM_OPEN_SQL
+    return (int)klcrm_db()->query(
+        "SELECT COUNT(*) FROM contacts c WHERE " . KLCRM_OPEN_SQL
     )->fetchColumn();
 }
 
-function kcrm_h(?string $s): string
+function klcrm_h(?string $s): string
 {
     return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 }

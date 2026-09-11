@@ -1,6 +1,6 @@
 <?php
 /**
- * Kurage CRM (kcrm) — LINE Messaging API の Webhook 受け口。
+ * Kurage CRM (klcrm) — LINE Messaging API の Webhook 受け口。
  *
  * LINE Developers コンソールの「Webhook URL」にこのファイルのURLを設定する。
  *   例: https://exbridge.jp/crm/webhook.php
@@ -13,7 +13,7 @@
  */
 
 declare(strict_types=1);
-require_once __DIR__ . '/kcrm_lib.php';
+require_once __DIR__ . '/klcrm_lib.php';
 
 $body = (string)file_get_contents('php://input');
 $sig  = $_SERVER['HTTP_X_LINE_SIGNATURE'] ?? '';
@@ -25,10 +25,10 @@ if ($body === '') {
     exit;
 }
 
-if (!kcrm_verify_signature($body, (string)$sig)) {
+if (!klcrm_verify_signature($body, (string)$sig)) {
     try {
-        kcrm_db()->prepare('INSERT INTO webhook_log(received_at,ok,note,events) VALUES(?,?,?,?)')
-                 ->execute([kcrm_now(), 0, '署名検証に失敗（偽リクエストの可能性）', 0]);
+        klcrm_db()->prepare('INSERT INTO webhook_log(received_at,ok,note,events) VALUES(?,?,?,?)')
+                 ->execute([klcrm_now(), 0, '署名検証に失敗（偽リクエストの可能性）', 0]);
     } catch (Throwable $e) { /* ログすら取れなくても止めない */ }
     http_response_code(400);
     echo 'bad signature';
@@ -39,8 +39,8 @@ $data   = json_decode($body, true);
 $events = (is_array($data) && isset($data['events']) && is_array($data['events'])) ? $data['events'] : [];
 
 try {
-    kcrm_db()->prepare('INSERT INTO webhook_log(received_at,ok,note,events) VALUES(?,?,?,?)')
-             ->execute([kcrm_now(), 1, '', count($events)]);
+    klcrm_db()->prepare('INSERT INTO webhook_log(received_at,ok,note,events) VALUES(?,?,?,?)')
+             ->execute([klcrm_now(), 1, '', count($events)]);
 } catch (Throwable $e) { /* 続行 */ }
 
 foreach ($events as $ev) {
@@ -51,26 +51,26 @@ foreach ($events as $ev) {
         if ($user_id === '') { continue; }   // グループ・ルームは今は扱わない
 
         if ($type === 'follow') {
-            kcrm_touch_contact($user_id, 'friend');
-            kcrm_refresh_profile($user_id, true);
-            kcrm_add_message($user_id, 'in', 'system', '友だち追加');
-            if (KCRM_FOLLOW_REPLY !== '' && $token !== '') {
-                kcrm_reply($token, KCRM_FOLLOW_REPLY);
-                kcrm_add_message($user_id, 'out', 'text', KCRM_FOLLOW_REPLY, '', 0);
+            klcrm_touch_contact($user_id, 'friend');
+            klcrm_refresh_profile($user_id, true);
+            klcrm_add_message($user_id, 'in', 'system', '友だち追加');
+            if (KLCRM_FOLLOW_REPLY !== '' && $token !== '') {
+                klcrm_reply($token, KLCRM_FOLLOW_REPLY);
+                klcrm_add_message($user_id, 'out', 'text', KLCRM_FOLLOW_REPLY, '', 0);
             }
             continue;
         }
 
         if ($type === 'unfollow') {
-            kcrm_touch_contact($user_id, 'blocked');
-            kcrm_add_message($user_id, 'in', 'system', 'ブロック（友だち解除）');
+            klcrm_touch_contact($user_id, 'blocked');
+            klcrm_add_message($user_id, 'in', 'system', 'ブロック（友だち解除）');
             continue;
         }
 
         if ($type !== 'message') { continue; }
 
-        kcrm_touch_contact($user_id, 'friend');
-        kcrm_refresh_profile($user_id);
+        klcrm_touch_contact($user_id, 'friend');
+        klcrm_refresh_profile($user_id);
 
         $m    = is_array($ev['message'] ?? null) ? $ev['message'] : [];
         $mt   = (string)($m['type'] ?? 'other');
@@ -86,17 +86,17 @@ foreach ($events as $ev) {
         } else {
             $text = '［' . $mt . '］';
         }
-        kcrm_add_message($user_id, 'in', $mt, $text, $mid);
+        klcrm_add_message($user_id, 'in', $mt, $text, $mid);
 
         // 受け取ったことだけ自動で返す（Reply APIなので無料）
-        if (KCRM_AUTO_REPLY !== '' && $token !== '' && $mt === 'text') {
-            kcrm_reply($token, KCRM_AUTO_REPLY);
-            kcrm_add_message($user_id, 'out', 'text', KCRM_AUTO_REPLY, '', 0);
+        if (KLCRM_AUTO_REPLY !== '' && $token !== '' && $mt === 'text') {
+            klcrm_reply($token, KLCRM_AUTO_REPLY);
+            klcrm_add_message($user_id, 'out', 'text', KLCRM_AUTO_REPLY, '', 0);
         }
     } catch (Throwable $e) {
         try {
-            kcrm_db()->prepare('INSERT INTO webhook_log(received_at,ok,note,events) VALUES(?,?,?,?)')
-                     ->execute([kcrm_now(), 0, '処理中のエラー: ' . mb_substr($e->getMessage(), 0, 200), 0]);
+            klcrm_db()->prepare('INSERT INTO webhook_log(received_at,ok,note,events) VALUES(?,?,?,?)')
+                     ->execute([klcrm_now(), 0, '処理中のエラー: ' . mb_substr($e->getMessage(), 0, 200), 0]);
         } catch (Throwable $e2) { /* 何もしない */ }
     }
 }
