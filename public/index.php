@@ -203,6 +203,12 @@ header a{font-size:13px;color:var(--teal-d)}
   font-weight:800;padding:0 7px;margin-left:6px}
 .blocked{color:#c0392b;font-size:11px;font-weight:800}
 .open-n{background:#c0392b;color:#fff;border-radius:999px;padding:2px 11px;font-size:13px;font-weight:900}
+.jump{display:none;gap:8px}
+.jump a{font-size:12.5px;font-weight:800;padding:5px 12px;border:1px solid var(--line);
+  border-radius:999px;text-decoration:none;background:#fff;color:var(--teal-d)}
+.side h4 .back{display:none;float:right;font-size:11.5px;font-weight:700;text-decoration:none;
+  color:var(--teal-d);background:#e9f6f4;border-radius:999px;padding:2px 10px}
+html{scroll-behavior:smooth;scroll-padding-top:8px}
 .open-n.zero{background:#0a9a8f}
 .filters{display:flex;gap:6px;border-bottom:1px solid var(--line);background:#fff;padding:8px 12px}
 .filters a{font-size:12.5px;padding:5px 11px;border-radius:999px;text-decoration:none;
@@ -262,7 +268,12 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
 @media(max-width:1100px){
   body{height:auto;display:block;overflow:visible}
   .wrap{min-height:0}
-  .list,.side,.thread{overflow-y:visible;max-height:none}
+  .list,.side{overflow-y:visible;max-height:none}
+  /* メッセージが多いとページが延々と長くなり、下のメモまで届かない。
+     トークだけ高さを抑えて、その中でスクロールさせる。 */
+  .thread{max-height:58vh;overflow-y:auto}
+  .jump{display:flex}
+  .side h4 .back{display:inline-block}
 }
 @media(max-width:760px){.wrap{grid-template-columns:1fr}.list{max-height:38vh;overflow-y:auto}}
 </style></head><body>
@@ -277,6 +288,12 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
   <?php if ($hooks): ?>
     <span class="meter">最終受信 <?= kcrm_h((string)$hooks['received_at']) ?>
       <?= ((int)$hooks['ok'] === 1) ? '' : '（署名エラー）' ?></span>
+  <?php endif; ?>
+  <?php if ($person): ?>
+    <span class="jump">
+      <a href="#note">📝 メモ</a>
+      <a href="#contact">👤 顧客データ</a>
+    </span>
   <?php endif; ?>
   <a href="?logout=1">ログアウト</a>
 </header>
@@ -313,7 +330,7 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
     <?php if (!$person): ?>
       <div class="empty">左から相談者を選んでください。</div>
     <?php else: ?>
-      <div class="who">
+      <div class="who" id="top">
         <?php if ($person['picture_url'] !== ''): ?>
           <img src="<?= kcrm_h((string)$person['picture_url']) ?>" alt="">
         <?php endif; ?>
@@ -396,7 +413,8 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
 
   <?php if ($person): ?>
   <aside class="side">
-    <h4>ノート<span class="sub2">打ち合わせ・条件・次にやること</span></h4>
+    <h4 id="note">ノート<a class="back" href="#top">↑ メッセージへ</a>
+      <span class="sub2">打ち合わせ・条件・次にやること</span></h4>
     <form method="post" class="noteform">
       <input type="hidden" name="action" value="note_save">
       <input type="hidden" name="user_id" value="<?= kcrm_h((string)$person['user_id']) ?>">
@@ -415,7 +433,8 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
       </div>
     </form>
 
-    <h4>連絡先<span class="sub2">補助情報</span></h4>
+    <h4 id="contact">連絡先<a class="back" href="#top">↑ メッセージへ</a>
+      <span class="sub2">補助情報</span></h4>
     <div class="lineid">LINE表示名: <?= kcrm_h((string)$person['display_name']) ?><br>userId: <?= kcrm_h((string)$person['user_id']) ?></div>
     <form method="post" class="cform">
       <input type="hidden" name="action" value="contact">
