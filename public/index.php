@@ -87,11 +87,45 @@ if (($_POST['action'] ?? '') === 'handled') {
     $notice = $to === 1 ? '対応済みにしました。' : '未対応に戻しました。';
 }
 
-if (($_POST['action'] ?? '') === 'note') {
+/* 連絡先（会社名・担当者名・メール・電話・URL・住所・流入元） */
+if (($_POST['action'] ?? '') === 'contact') {
     $uid = (string)($_POST['user_id'] ?? '');
-    $db->prepare('UPDATE contacts SET note=? WHERE user_id=?')
-       ->execute([mb_substr((string)($_POST['note'] ?? ''), 0, 2000), $uid]);
-    $notice = 'メモを保存しました。';
+    $f = [];
+    foreach (['company', 'person_name', 'email', 'phone', 'url', 'address', 'source'] as $k) {
+        $f[$k] = mb_substr(trim((string)($_POST[$k] ?? '')), 0, 200);
+    }
+    $db->prepare('UPDATE contacts SET company=?, person_name=?, email=?, phone=?, url=?, address=?, source=?
+                  WHERE user_id=?')
+       ->execute([$f['company'], $f['person_name'], $f['email'], $f['phone'], $f['url'],
+                  $f['address'], $f['source'], $uid]);
+    $notice = '連絡先を保存しました。';
+}
+
+/* ノート（件数を積む。1行メモではなく、打ち合わせ記録や条件をためる場所） */
+if (($_POST['action'] ?? '') === 'note_save') {
+    $uid   = (string)($_POST['user_id'] ?? '');
+    $nid   = (int)($_POST['note_id'] ?? 0);
+    $title = mb_substr(trim((string)($_POST['title'] ?? '')), 0, 120);
+    $body  = mb_substr((string)($_POST['body'] ?? ''), 0, 20000);
+    if ($uid !== '' && ($title !== '' || trim($body) !== '')) {
+        if ($nid > 0) {
+            $db->prepare('UPDATE notes SET title=?, body=?, updated_at=? WHERE id=? AND user_id=?')
+               ->execute([$title, $body, kcrm_now(), $nid, $uid]);
+            $notice = 'ノートを更新しました。';
+        } else {
+            $db->prepare('INSERT INTO notes(user_id,title,body,created_at,updated_at) VALUES(?,?,?,?,?)')
+               ->execute([$uid, ($title !== '' ? $title : '無題'), $body, kcrm_now(), kcrm_now()]);
+            $notice = 'ノートを追加しました。';
+        }
+    } else {
+        $error = 'タイトルか本文のどちらかは書いてください。';
+    }
+}
+
+if (($_POST['action'] ?? '') === 'note_del') {
+    $db->prepare('DELETE FROM notes WHERE id=? AND user_id=?')
+       ->execute([(int)($_POST['note_id'] ?? 0), (string)($_POST['user_id'] ?? '')]);
+    $notice = 'ノートを削除しました。';
 }
 
 $sel = (string)($_GET['u'] ?? ($_POST['user_id'] ?? ''));
@@ -107,6 +141,7 @@ $contacts = $filter === 'open'
     : $db->query('SELECT * FROM contacts ORDER BY handled ASC, last_seen DESC')->fetchAll();
 $open_n = kcrm_open_count();
 $thread   = [];
+$notes    = [];
 $person   = null;
 if ($sel !== '') {
     $st = $db->prepare('SELECT * FROM contacts WHERE user_id=?');
@@ -122,6 +157,9 @@ if ($sel !== '') {
     }
     $thread = $st->fetchAll();
     $total  = (int)$db->query('SELECT COUNT(*) FROM messages WHERE user_id=' . $db->quote($sel))->fetchColumn();
+    $st = $db->prepare('SELECT * FROM notes WHERE user_id=? ORDER BY id DESC');
+    $st->execute([$sel]);
+    $notes = $st->fetchAll();
 }
 $used   = kcrm_push_used_this_month();
 $free   = (int)KCRM_PUSH_FREE_PER_MONTH;
@@ -143,7 +181,29 @@ header b{font-size:16px}
 .meter b{color:var(--teal-d)}
 .meter.warn b{color:#c0392b}
 header a{font-size:13px;color:var(--teal-d)}
-.wrap{display:grid;grid-template-columns:300px minmax(0,1fr);gap:0;height:calc(100vh - 52px)}
+.wrap{display:grid;grid-template-columns:270px minmax(0,1fr) 330px;gap:0;height:calc(100vh - 52px)}
+.side{border-left:1px solid var(--line);background:#fff;overflow-y:auto;padding:14px 16px 40px}
+.side h4{margin:0 0 9px;font-size:13px;font-weight:900;color:var(--teal-d);letter-spacing:.03em;
+  border-bottom:2px solid var(--line);padding-bottom:6px}
+.side h4 + h4{margin-top:24px}
+.fld{margin-bottom:9px}
+.fld label{display:block;font-size:11px;color:var(--muted);font-weight:700;margin-bottom:2px}
+.fld input{width:100%;padding:7px 10px;font:inherit;font-size:13.5px;border:1px solid #cdd8e3;border-radius:8px}
+.side form button{width:100%;padding:9px;font-size:13px;margin-top:4px}
+.lineid{font-size:10.5px;color:var(--muted);word-break:break-all;background:#f4f8f9;
+  border-radius:6px;padding:6px 8px;margin-bottom:12px;line-height:1.5}
+.note-item{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:9px;background:#fcfefe}
+.note-item h5{margin:0 0 4px;font-size:13.5px;font-weight:800}
+.note-item .b{font-size:12.5px;color:#33454f;white-space:pre-wrap;word-break:break-word;line-height:1.7}
+.note-item .t{font-size:10.5px;color:var(--muted);margin-top:6px;display:flex;gap:8px;align-items:center}
+.note-item .t button{background:none;border:0;color:var(--teal-d);font-size:10.5px;font-weight:700;
+  cursor:pointer;padding:1px 5px;font-family:inherit}
+.note-item .t button.del{color:#c0392b}
+.note-new textarea{width:100%;min-height:90px;padding:8px 10px;font:inherit;font-size:13px;
+  border:1px solid #cdd8e3;border-radius:8px;resize:vertical}
+.note-new input{width:100%;padding:7px 10px;font:inherit;font-size:13.5px;border:1px solid #cdd8e3;
+  border-radius:8px;margin-bottom:6px}
+@media(max-width:1100px){.wrap{grid-template-columns:250px minmax(0,1fr)}.side{grid-column:1/-1;border-left:0;border-top:1px solid var(--line)}}
 .list{border-right:1px solid var(--line);overflow-y:auto;background:#fff}
 .list a{display:block;padding:11px 14px;border-bottom:1px solid var(--line);text-decoration:none;color:var(--ink)}
 .list a.on{background:#e9f6f4}
@@ -277,12 +337,6 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
             </button>
           </form>
         </div>
-        <form class="note-form" method="post">
-          <input type="hidden" name="action" value="note">
-          <input type="hidden" name="user_id" value="<?= kcrm_h((string)$person['user_id']) ?>">
-          <input name="note" value="<?= kcrm_h((string)$person['note']) ?>" placeholder="メモ（相手には見えません）">
-          <button class="sub" type="submit">保存</button>
-        </form>
       </div>
 
       <form class="searchbar" method="get">
@@ -343,8 +397,71 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
       </div>
     <?php endif; ?>
   </div>
+
+  <?php if ($person): ?>
+  <aside class="side">
+    <h4>連絡先</h4>
+    <div class="lineid">LINE表示名: <?= kcrm_h((string)$person['display_name']) ?><br>userId: <?= kcrm_h((string)$person['user_id']) ?></div>
+    <form method="post">
+      <input type="hidden" name="action" value="contact">
+      <input type="hidden" name="user_id" value="<?= kcrm_h((string)$person['user_id']) ?>">
+      <?php foreach ([
+        'company'     => ['会社名・団体名', 'text'],
+        'person_name' => ['お名前（本名）', 'text'],
+        'email'       => ['メール', 'email'],
+        'phone'       => ['電話', 'tel'],
+        'url'         => ['URL', 'url'],
+        'address'     => ['住所', 'text'],
+        'source'      => ['きっかけ（紹介・広告など）', 'text'],
+      ] as $k => $meta): ?>
+        <div class="fld">
+          <label for="f_<?= $k ?>"><?= kcrm_h($meta[0]) ?></label>
+          <input id="f_<?= $k ?>" type="<?= $meta[1] ?>" name="<?= $k ?>" value="<?= kcrm_h((string)($person[$k] ?? '')) ?>">
+        </div>
+      <?php endforeach; ?>
+      <button type="submit">連絡先を保存</button>
+    </form>
+
+    <h4>ノート（<?= count($notes) ?>）</h4>
+    <form class="note-new" method="post" style="margin-bottom:14px">
+      <input type="hidden" name="action" value="note_save">
+      <input type="hidden" name="user_id" value="<?= kcrm_h((string)$person['user_id']) ?>">
+      <input name="title" placeholder="タイトル（例: 9/11 電話 見積の条件）">
+      <textarea name="body" placeholder="打ち合わせの内容、決まったこと、次にやること"></textarea>
+      <button type="submit">ノートを追加</button>
+    </form>
+    <?php foreach ($notes as $nt): ?>
+      <div class="note-item">
+        <h5><?= kcrm_h((string)$nt['title']) ?></h5>
+        <div class="b" id="nb<?= (int)$nt['id'] ?>"><?= kcrm_h((string)$nt['body']) ?></div>
+        <div class="t">
+          <span><?= kcrm_h((string)$nt['updated_at']) ?></span>
+          <button type="button" onclick="editNote(<?= (int)$nt['id'] ?>)">編集</button>
+          <form method="post" style="display:inline" onsubmit="return confirm('このノートを削除しますか')">
+            <input type="hidden" name="action" value="note_del">
+            <input type="hidden" name="user_id" value="<?= kcrm_h((string)$person['user_id']) ?>">
+            <input type="hidden" name="note_id" value="<?= (int)$nt['id'] ?>">
+            <button type="submit" class="del">削除</button>
+          </form>
+        </div>
+        <form method="post" id="ne<?= (int)$nt['id'] ?>" hidden class="note-new" style="margin-top:8px">
+          <input type="hidden" name="action" value="note_save">
+          <input type="hidden" name="user_id" value="<?= kcrm_h((string)$person['user_id']) ?>">
+          <input type="hidden" name="note_id" value="<?= (int)$nt['id'] ?>">
+          <input name="title" value="<?= kcrm_h((string)$nt['title']) ?>">
+          <textarea name="body"><?= kcrm_h((string)$nt['body']) ?></textarea>
+          <button type="submit">更新する</button>
+        </form>
+      </div>
+    <?php endforeach; ?>
+  </aside>
+  <?php endif; ?>
 </div>
 <script>
+function editNote(id){
+  var f=document.getElementById('ne'+id), b=document.getElementById('nb'+id);
+  if(!f) return; f.hidden=!f.hidden; if(b) b.style.display=f.hidden?'':'none';
+}
 var t=document.getElementById('thread'); if(t){t.scrollTop=t.scrollHeight;}
 function flash(btn, label){
   var old = btn.textContent; btn.textContent = label; btn.classList.add('done');

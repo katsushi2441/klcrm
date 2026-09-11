@@ -71,6 +71,41 @@ function kcrm_db(): PDO
     // 既存DBにも後から足せるようにする（列が無ければ追加）
     $cols = [];
     foreach ($pdo->query('PRAGMA table_info(contacts)') as $c) { $cols[] = $c['name']; }
+    // 顧客台帳としての項目。LINEの表示名は本名とは限らないので person_name と必ず分ける
+    // （同じ列に混ぜると、あとで名寄せできなくなる）
+    foreach ([
+        'company'     => "TEXT DEFAULT ''",   // 会社名・団体名
+        'person_name' => "TEXT DEFAULT ''",   // 本名（display_nameとは別物）
+        'email'       => "TEXT DEFAULT ''",
+        'phone'       => "TEXT DEFAULT ''",
+        'url'         => "TEXT DEFAULT ''",
+        'address'     => "TEXT DEFAULT ''",
+        'source'      => "TEXT DEFAULT ''",   // どこから来たか（LINE/紹介/展示会…）
+    ] as $col => $decl) {
+        if (!in_array($col, $cols, true)) {
+            $pdo->exec("ALTER TABLE contacts ADD COLUMN $col $decl");
+        }
+    }
+    // ノート（1行メモでは足りないので、件数を積める形にする）
+    $pdo->exec('CREATE TABLE IF NOT EXISTS notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        title TEXT DEFAULT "",
+        body TEXT DEFAULT "",
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_notes_user ON notes(user_id, id)');
+    // 旧・1行メモをノートへ引っ越す（メモの置き場所を1か所にする）
+    if (in_array('note', $cols, true) && !in_array('note_migrated', $cols, true)) {
+        $pdo->exec("ALTER TABLE contacts ADD COLUMN note_migrated INTEGER DEFAULT 0");
+        $now = (new DateTimeImmutable('now', new DateTimeZone('Asia/Tokyo')))->format('Y-m-d H:i:s');
+        foreach ($pdo->query("SELECT user_id, note FROM contacts WHERE note <> ''") as $r) {
+            $ins = $pdo->prepare('INSERT INTO notes(user_id,title,body,created_at,updated_at) VALUES(?,?,?,?,?)');
+            $ins->execute([$r['user_id'], 'メモ', $r['note'], $now, $now]);
+        }
+        $pdo->exec('UPDATE contacts SET note_migrated=1');
+    }
     if (!in_array('handled', $cols, true)) {
         // 0=未対応（新しい相談が来た） 1=対応済み。返信はLINE側で行う前提なので、
         // 「返したかどうか」は機械には分からない。人が印を付ける運用にする。
