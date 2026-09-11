@@ -204,6 +204,7 @@ header a{font-size:13px;color:var(--teal-d)}
 .who .state{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .who .state button{padding:8px 16px;font-size:13px}
 .replybox{flex:none;border-top:1px solid var(--line);background:#fff;padding:10px 16px}
+.replybox[open]{padding-bottom:14px}
 .replybox summary{font-size:13px;color:var(--muted);cursor:pointer;font-weight:700}
 .replybox[open] summary{margin-bottom:10px}
 .hint{flex:none;border-top:1px solid var(--line);background:#f7fbfb;padding:10px 18px;font-size:12.5px;color:var(--muted)}
@@ -230,9 +231,9 @@ header a{font-size:13px;color:var(--teal-d)}
 .out{background:#dff3ef;margin-left:auto}
 .sys{background:#f1f4f6;color:var(--muted);font-size:13px;margin:0 auto 12px;text-align:center;max-width:60%}
 .meta{font-size:11px;color:var(--muted);margin-top:3px}
-.composer{border-top:1px solid var(--line);background:#fff;padding:12px 16px}
-.composer textarea{width:100%;min-height:64px;padding:10px 12px;font:inherit;font-size:14px;
-  border:1px solid #cdd8e3;border-radius:10px;resize:vertical}
+.replybox textarea{width:100%;height:190px;min-height:120px;padding:12px 14px;font:inherit;font-size:14.5px;
+  line-height:1.85;border:1px solid #cdd8e3;border-radius:10px;resize:vertical;background:#fff}
+.replybox textarea:focus{outline:2px solid var(--teal);outline-offset:-1px;border-color:var(--teal)}
 .row{display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap}
 button{padding:10px 20px;font-size:14px;font-weight:800;color:#fff;background:var(--teal);
   border:0;border-radius:9px;cursor:pointer;font-family:inherit}
