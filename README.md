@@ -4,6 +4,7 @@
 PHPが動くレンタルサーバーに置くだけ。MySQL不要（SQLite 1ファイル）。
 
 - **設置手順（LINE公式アカウントを作るところから）: [docs/SETUP.md](docs/SETUP.md)**
+- **AIエージェントから操作する（MCP）: [docs/MCP.md](docs/MCP.md)**
 - デモ: https://proto.exbridge.jp/klcrm/
 - 動作要件: PHP 7.0以上 / pdo_sqlite / cURL / mbstring / HTTPS
   → `public/check.php` をサーバーに置いて開けば、その場で可否が分かる
@@ -38,6 +39,19 @@ PHPが動くレンタルサーバーに置くだけ。MySQL不要（SQLite 1フ�
 - **氏名・メール・電話は取れない。** `displayName` はニックネームで本名とは限らない
   （だから `display_name` と `person_name` を別の列にしてある）
 - プロフィールは友だちでなくなると取得できない（取れたときだけ更新する実装）
+
+## AIエージェントから操作できる（MCP同梱）
+
+`public/klcrm_mcp.php` を登録すると、**Claude Code / Claude Desktop からこの台帳を直接読み書き**できる。
+「田中工務店の経緯を3行で」「未対応は何件？」「この内容をノートに足して」がそのまま通る。
+
+- 読む: `klcrm_contacts` / `klcrm_get` / `klcrm_search` / `klcrm_status`
+- 書く: `klcrm_note_set` / `klcrm_contact_set` / `klcrm_handled`（`KLCRM_MCP_READONLY=1` で無効化）
+- 送る: `klcrm_send` は **既定で無効**。`KLCRM_MCP_ALLOW_PUSH=1` のときだけ `tools/list` に出る
+  （送信は取り消せず、Push通数を消費するため）
+
+**新しい権限経路を作らない。** 製品本体の関数をそのまま呼ぶ薄い橋で、未対応の判定も通数の数え方も画面と同じ式。
+Webからは開けない（`PHP_SAPI !== 'cli'` なら404）。詳細は [docs/MCP.md](docs/MCP.md)。
 
 ## 守っていること
 

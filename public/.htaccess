@@ -2,8 +2,10 @@
 # バージョン指定の書式は php-script(=PHP8系) / php7.4-script / php5.6-script。
 AddHandler php-script .php
 
-# 設定ファイル（トークンが入る）を直接読ませない
-<FilesMatch "^(k|kl)crm_config\.php$|\.sqlite$|\.sqlite-wal$|\.sqlite-shm$">
+# 設定ファイル（トークンが入る）とMCPサーバーを直接読ませない。
+# klcrm_mcp.php は自分でも PHP_SAPI!==cli なら404を返すが、PHPハンドラの設定を
+# 間違えるとソースがそのまま配信されるので、ここでも塞いでおく。
+<FilesMatch "^(k|kl)crm_config\.php$|^klcrm_mcp\.php$|\.sqlite$|\.sqlite-wal$|\.sqlite-shm$">
   Require all denied
   <IfModule !mod_authz_core.c>
     Order allow,deny
