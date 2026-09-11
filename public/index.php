@@ -41,9 +41,10 @@ if (empty($_SESSION['klcrm_ok'])) {
     form{background:#fff;border:1px solid #dcebe9;border-radius:16px;padding:26px 30px 22px;width:min(360px,92vw);text-align:center}
     .face{width:104px;height:104px;object-fit:contain;margin-bottom:4px}
     form h1,form p,form input{text-align:left}
-    .by{display:flex;align-items:center;justify-content:center;margin-top:18px;
+    .by{display:flex;align-items:center;justify-content:center;gap:9px;margin-top:18px;
       padding-top:16px;border-top:1px solid #eef4f4}
-    .by img{height:30px;width:auto;display:block}
+    .by img{width:30px;height:30px;border-radius:7px;object-fit:contain;display:block}
+    .by span{font-size:14.5px;font-weight:800;color:#1d3038;letter-spacing:.01em}
     h1{font-size:19px;margin:0 0 6px}p{color:#5f7078;font-size:13px;margin:0 0 18px}
     input{width:100%;padding:12px 14px;font-size:16px;border:1px solid #cdd8e3;border-radius:10px;margin-bottom:12px}
     button{width:100%;padding:12px;font-size:15px;font-weight:800;color:#fff;background:#0a9a8f;border:0;border-radius:10px;cursor:pointer}
@@ -59,7 +60,7 @@ if (empty($_SESSION['klcrm_ok'])) {
       <?php endif; ?>
       <input type="password" name="klcrm_pw" placeholder="パスワード" autofocus required>
       <button type="submit">開く</button>
-      <div class="by"><img src="assets/exbridge-logo.svg" alt="株式会社エクスブリッジ"></div>
+      <div class="by"><img src="assets/exbridge-mark.png" alt="" width="64" height="64"><span>株式会社エクスブリッジ</span></div>
     </form></body></html><?php
     exit;
 }
@@ -174,7 +175,9 @@ header{background:#fff;border-bottom:1px solid var(--line);padding:11px 18px;dis
 header b{font-size:16px}
 .brand{display:flex;align-items:center;gap:9px}
 .brand img{width:34px;height:34px;object-fit:contain;flex:none}
-.xblogo{height:30px;width:auto;display:block}
+.xb{display:flex;align-items:center;gap:8px}
+.xb img{width:30px;height:30px;border-radius:7px;object-fit:contain;flex:none}
+.xb span{font-size:14px;font-weight:800;color:var(--ink);white-space:nowrap}
 .meter{font-size:12.5px;color:var(--muted)}
 .meter b{color:var(--teal-d)}
 .meter.warn b{color:#c0392b}
@@ -305,7 +308,7 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
       <a href="#contact">👤 顧客データ</a>
     </span>
   <?php endif; ?>
-  <img class="xblogo" src="assets/exbridge-logo.svg" alt="株式会社エクスブリッジ">
+  <span class="xb"><img src="assets/exbridge-mark.png" alt="" width="64" height="64"><span>株式会社エクスブリッジ</span></span>
   <a href="?logout=1">ログアウト</a>
 </header>
 
