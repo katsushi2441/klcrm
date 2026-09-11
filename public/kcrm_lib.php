@@ -96,8 +96,30 @@ function kcrm_db(): PDO
         updated_at TEXT NOT NULL
     )');
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_notes_user ON notes(user_id, id)');
-    // 旧・1行メモをノートへ引っ越す（メモの置き場所を1か所にする）
-    if (in_array('note', $cols, true) && !in_array('note_migrated', $cols, true)) {
+    // ノートは「1人につき1枚の大きなメモ」にする（contacts.note）。
+    // 以前 notes テーブルへ分けたが、細切れより1枚に書き足すほうが実務に合う。
+    // 既に notes 行があれば、古い順に連結して note へ戻し、notes は空にする。
+    if (!in_array('note_merged', $cols, true)) {
+        $pdo->exec("ALTER TABLE contacts ADD COLUMN note_merged INTEGER DEFAULT 0");
+        $has_notes = (int)$pdo->query("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='notes'")->fetchColumn();
+        if ($has_notes) {
+            foreach ($pdo->query('SELECT DISTINCT user_id FROM notes') as $r) {
+                $uid = $r['user_id'];
+                $parts = [];
+                $q = $pdo->prepare('SELECT title, body, updated_at FROM notes WHERE user_id=? ORDER BY id ASC');
+                $q->execute([$uid]);
+                foreach ($q as $n) {
+                    $parts[] = '【' . ($n['title'] !== '' ? $n['title'] : $n['updated_at']) . "】\n" . $n['body'];
+                }
+                $cur = (string)$pdo->query('SELECT note FROM contacts WHERE user_id=' . $pdo->quote($uid))->fetchColumn();
+                $merged = trim(implode("\n\n", $parts) . ($cur !== '' ? "\n\n" . $cur : ''));
+                $pdo->prepare('UPDATE contacts SET note=? WHERE user_id=?')->execute([$merged, $uid]);
+            }
+            $pdo->exec('DELETE FROM notes');
+        }
+        $pdo->exec('UPDATE contacts SET note_merged=1');
+    }
+    if (false) {
         $pdo->exec("ALTER TABLE contacts ADD COLUMN note_migrated INTEGER DEFAULT 0");
         $now = (new DateTimeImmutable('now', new DateTimeZone('Asia/Tokyo')))->format('Y-m-d H:i:s');
         foreach ($pdo->query("SELECT user_id, note FROM contacts WHERE note <> ''") as $r) {
