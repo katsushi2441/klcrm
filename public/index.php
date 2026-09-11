@@ -38,13 +38,19 @@ if (empty($_SESSION['klcrm_ok'])) {
     <style>
     body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f3faf9;
       font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;color:#1d3038}
-    form{background:#fff;border:1px solid #dcebe9;border-radius:16px;padding:28px 30px;width:min(360px,92vw)}
+    form{background:#fff;border:1px solid #dcebe9;border-radius:16px;padding:26px 30px 22px;width:min(360px,92vw);text-align:center}
+    .face{width:84px;height:84px;border-radius:50%;object-fit:cover;border:2px solid #dcebe9;margin-bottom:10px}
+    form h1,form p,form input{text-align:left}
+    .by{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:16px;
+      padding-top:14px;border-top:1px solid #eef4f4;color:#7b8b96;font-size:11.5px}
+    .by img{border-radius:5px}
     h1{font-size:19px;margin:0 0 6px}p{color:#5f7078;font-size:13px;margin:0 0 18px}
     input{width:100%;padding:12px 14px;font-size:16px;border:1px solid #cdd8e3;border-radius:10px;margin-bottom:12px}
     button{width:100%;padding:12px;font-size:15px;font-weight:800;color:#fff;background:#0a9a8f;border:0;border-radius:10px;cursor:pointer}
     .err{color:#c0392b;font-size:13px;margin-bottom:10px}
     </style></head><body>
     <form method="post">
+      <img class="face" src="assets/kurage-face.webp" alt="" width="96" height="96">
       <h1><?= klcrm_h(KLCRM_TITLE) ?></h1>
       <p>LINEに届いた相談を見る窓口です。</p>
       <?php if ($login_error !== ''): ?><div class="err"><?= klcrm_h($login_error) ?></div><?php endif; ?>
@@ -53,6 +59,7 @@ if (empty($_SESSION['klcrm_ok'])) {
       <?php endif; ?>
       <input type="password" name="klcrm_pw" placeholder="パスワード" autofocus required>
       <button type="submit">開く</button>
+      <div class="by"><img src="assets/exbridge-logo.png" alt="" width="22" height="22"><span>株式会社エクスブリッジ</span></div>
     </form></body></html><?php
     exit;
 }
@@ -165,6 +172,9 @@ header,.notice,.err{flex:none}
 header{background:#fff;border-bottom:1px solid var(--line);padding:11px 18px;display:flex;
   align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
 header b{font-size:16px}
+.brand{display:flex;align-items:center;gap:9px}
+.brand img{width:30px;height:30px;border-radius:50%;object-fit:cover;border:1.5px solid var(--line);flex:none}
+.xblogo{width:20px;height:20px;border-radius:4px;opacity:.75}
 .meter{font-size:12.5px;color:var(--muted)}
 .meter b{color:var(--teal-d)}
 .meter.warn b{color:#c0392b}
@@ -278,7 +288,7 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
 @media(max-width:760px){.wrap{grid-template-columns:1fr}.list{max-height:38vh;overflow-y:auto}}
 </style></head><body>
 <header>
-  <b><?= klcrm_h(KLCRM_TITLE) ?></b>
+  <span class="brand"><img src="assets/kurage-face.webp" alt="" width="30" height="30"><b><?= klcrm_h(KLCRM_TITLE) ?></b></span>
   <span class="open-n <?= $open_n === 0 ? 'zero' : '' ?>">未対応 <?= $open_n ?>件</span>
   <span class="meter <?= $used >= $free ? 'warn' : '' ?>">
     今月こちらから送った数 <b><?= $used ?></b> / <?= $free ?> 通（無料枠）
@@ -295,6 +305,7 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
       <a href="#contact">👤 顧客データ</a>
     </span>
   <?php endif; ?>
+  <img class="xblogo" src="assets/exbridge-logo.png" alt="株式会社エクスブリッジ" width="20" height="20" title="株式会社エクスブリッジ">
   <a href="?logout=1">ログアウト</a>
 </header>
 

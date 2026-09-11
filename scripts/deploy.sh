@@ -29,6 +29,9 @@ for f in "${files[@]}"; do
   put "public/$f" "$f"
 done
 put "public/klcrm_data/.htaccess" "klcrm_data/.htaccess"
+# 画像（Kurageキャラ・エクスブリッジのロゴ）。外部URLを参照せず同梱するので、
+# 買い手の環境でも当社のサーバーに依存せず表示できる
+for a in public/assets/*; do put "$a" "assets/$(basename "$a")"; done
 
 echo "成功${ok} 失敗${ng} → https://exbridge.jp/crm/"
 exit $(( ng > 0 ))
