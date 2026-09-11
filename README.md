@@ -59,8 +59,24 @@ Webからは開けない（`PHP_SAPI !== 'cli'` なら404）。詳細は [docs/M
 - SQLiteと設定ファイルは `.htaccess` で遮断。DBのファイル名はチャネルシークレットから導出して推測不能
 - 設定ファイル（トークンを含む）はリポジトリに入れない。配るのは `klcrm_config.php.example`
 
----
+## データ構造で気をつけていること
 
-当社の運用（デプロイ・本番の固有値・ヘテムル特有の注意）は [docs/OPERATIONS.md](docs/OPERATIONS.md)。
+- **`display_name`（LINEの表示名）と `person_name`（本名）を必ず分ける。**
+  LINEの表示名は「たろう」「🌸」でもよく、本名とは限らない。同じ列に混ぜると名寄せできなくなる
+- **ノートは1人1枚**（`contacts.note`）。細切れに分けるより、1枚に書き足すほうが実務に合う。
+  以前 `notes` テーブルへ分けたが、初回起動時に古い順で連結して `note` へ戻す移行を入れてある
+- 列の追加は `PRAGMA table_info` を見てから `ALTER TABLE`。既存DBを壊さずに育てられる
+- **DBのファイル名はチャネルシークレットから導出する。改名すると過去のデータを見失う**ので、
+  導出の式は変えない（名前を kcrm → klcrm に変えたときも、ハッシュの元文字列は据え置いた）
+
+## 共有レンタルサーバーでの注意
+
+- PHPの既定が古いことがある。`.htaccess` にサーバー会社の指定を書けば切り替わる
+  （ヘテムル/ロリポップは `AddHandler php-script .php` で PHP8系。
+  `x-httpd-phpX.Y` は無効で、**PHPのソースがそのまま配信される**ので使わない）
+- `klcrm_data/` に書き込み権限が要る。無いと `unable to open database file` で 500 になる
+- 設定ファイルとSQLiteが `.htaccess` で遮断できているか、**403になることを毎回実測する**
+
+---
 
 MIT License / EXBRIDGE, Inc.

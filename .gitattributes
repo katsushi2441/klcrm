@@ -1,5 +1,4 @@
 # 配布キット（git archive）に入れないもの
-docs/OPERATIONS.md export-ignore
 scripts/deploy.sh  export-ignore
 .gitignore         export-ignore
 .gitattributes     export-ignore
