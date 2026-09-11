@@ -68,6 +68,15 @@ function kcrm_db(): PDO
         created_at TEXT NOT NULL
     )');
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_messages_user ON messages(user_id, id)');
+    // 既存DBにも後から足せるようにする（列が無ければ追加）
+    $cols = [];
+    foreach ($pdo->query('PRAGMA table_info(contacts)') as $c) { $cols[] = $c['name']; }
+    if (!in_array('handled', $cols, true)) {
+        // 0=未対応（新しい相談が来た） 1=対応済み。返信はLINE側で行う前提なので、
+        // 「返したかどうか」は機械には分からない。人が印を付ける運用にする。
+        $pdo->exec('ALTER TABLE contacts ADD COLUMN handled INTEGER DEFAULT 1');
+        $pdo->exec('UPDATE contacts SET handled=0 WHERE unread > 0');
+    }
     $pdo->exec('CREATE TABLE IF NOT EXISTS webhook_log (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         received_at TEXT NOT NULL,
@@ -172,7 +181,8 @@ function kcrm_add_message(string $user_id, string $direction, string $kind, stri
                   VALUES(?,?,?,?,?,?,?)')
        ->execute([$user_id, $direction, $kind, $body, $line_message_id, $billed, kcrm_now()]);
     if ($direction === 'in') {
-        $db->prepare('UPDATE contacts SET unread = unread + 1 WHERE user_id=?')->execute([$user_id]);
+        // 相手から届いたら未対応に戻す（こちらが返したかはLINE側で行われるため分からない）
+        $db->prepare('UPDATE contacts SET unread = unread + 1, handled = 0 WHERE user_id=?')->execute([$user_id]);
     }
 }
 
@@ -184,6 +194,12 @@ function kcrm_push_used_this_month(): int
     $st = $db->prepare("SELECT COUNT(*) FROM messages WHERE billed=1 AND substr(created_at,1,7)=?");
     $st->execute([$m]);
     return (int)$st->fetchColumn();
+}
+
+/** 未対応の件数。画面の主役はここ（返信そのものはLINE側で行う） */
+function kcrm_open_count(): int
+{
+    return (int)kcrm_db()->query('SELECT COUNT(*) FROM contacts WHERE handled=0')->fetchColumn();
 }
 
 function kcrm_h(?string $s): string

@@ -80,6 +80,13 @@ if (($_POST['action'] ?? '') === 'send') {
     }
 }
 
+if (($_POST['action'] ?? '') === 'handled') {
+    $uid = (string)($_POST['user_id'] ?? '');
+    $to  = ((string)($_POST['to'] ?? '1')) === '1' ? 1 : 0;
+    $db->prepare('UPDATE contacts SET handled=? WHERE user_id=?')->execute([$to, $uid]);
+    $notice = $to === 1 ? '対応済みにしました。' : '未対応に戻しました。';
+}
+
 if (($_POST['action'] ?? '') === 'note') {
     $uid = (string)($_POST['user_id'] ?? '');
     $db->prepare('UPDATE contacts SET note=? WHERE user_id=?')
@@ -94,7 +101,11 @@ if ($sel !== '') {
     $db->prepare('UPDATE contacts SET unread=0 WHERE user_id=?')->execute([$sel]);
 }
 
-$contacts = $db->query('SELECT * FROM contacts ORDER BY last_seen DESC')->fetchAll();
+$filter = (string)($_GET['f'] ?? '');
+$contacts = $filter === 'open'
+    ? $db->query('SELECT * FROM contacts WHERE handled=0 ORDER BY last_seen DESC')->fetchAll()
+    : $db->query('SELECT * FROM contacts ORDER BY handled ASC, last_seen DESC')->fetchAll();
+$open_n = kcrm_open_count();
 $thread   = [];
 $person   = null;
 if ($sel !== '') {
@@ -141,6 +152,21 @@ header a{font-size:13px;color:var(--teal-d)}
 .badge{display:inline-block;background:#c0392b;color:#fff;border-radius:999px;font-size:11px;
   font-weight:800;padding:0 7px;margin-left:6px}
 .blocked{color:#c0392b;font-size:11px;font-weight:800}
+.open-n{background:#c0392b;color:#fff;border-radius:999px;padding:2px 11px;font-size:13px;font-weight:900}
+.open-n.zero{background:#0a9a8f}
+.filters{display:flex;gap:6px;border-bottom:1px solid var(--line);background:#fff;padding:8px 12px}
+.filters a{font-size:12.5px;padding:5px 11px;border-radius:999px;text-decoration:none;
+  border:1px solid var(--line);color:var(--muted);background:#fff}
+.filters a.on{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:800}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#c0392b;margin-right:6px;vertical-align:1px}
+.done-tag{font-size:11px;color:var(--muted);font-weight:700}
+.who .state{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.who .state button{padding:8px 16px;font-size:13px}
+.replybox{border-top:1px solid var(--line);background:#fff;padding:10px 16px}
+.replybox summary{font-size:13px;color:var(--muted);cursor:pointer;font-weight:700}
+.replybox[open] summary{margin-bottom:10px}
+.hint{border-top:1px solid var(--line);background:#f7fbfb;padding:10px 18px;font-size:12.5px;color:var(--muted)}
+.hint b{color:var(--ink)}
 .pane{display:flex;flex-direction:column;min-width:0}
 .searchbar{border-bottom:1px solid var(--line);background:#fff;padding:9px 18px;display:flex;
   gap:9px;align-items:center;flex-wrap:wrap}
@@ -186,6 +212,7 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
 </style></head><body>
 <header>
   <b><?= kcrm_h(KCRM_TITLE) ?></b>
+  <span class="open-n <?= $open_n === 0 ? 'zero' : '' ?>">未対応 <?= $open_n ?>件</span>
   <span class="meter <?= $used >= $free ? 'warn' : '' ?>">
     今月こちらから送った数 <b><?= $used ?></b> / <?= $free ?> 通（無料枠）
     <?php if ($used >= $free): ?>— 超過分は課金されます<?php endif; ?>
@@ -203,6 +230,10 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
 
 <div class="wrap">
   <div class="list">
+    <div class="filters">
+      <a href="?" class="<?= $filter !== 'open' ? 'on' : '' ?>">すべて</a>
+      <a href="?f=open" class="<?= $filter === 'open' ? 'on' : '' ?>">未対応だけ（<?= $open_n ?>）</a>
+    </div>
     <?php if (!$contacts): ?>
       <div class="empty">まだ誰からも届いていません。<br>LINE公式アカウントを友だち追加して、メッセージを送ってみてください。</div>
     <?php endif; ?>
@@ -211,8 +242,9 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
       $last->execute([$c['user_id']]);
       $lastbody = (string)($last->fetchColumn() ?: ''); ?>
       <a href="?u=<?= urlencode((string)$c['user_id']) ?>" class="<?= $sel === $c['user_id'] ? 'on' : '' ?>">
-        <div class="nm"><?= kcrm_h(($c['display_name'] !== '' ? $c['display_name'] : '（名前未取得）')) ?>
+        <div class="nm"><?php if ((int)($c['handled'] ?? 1) === 0): ?><span class="dot" title="未対応"></span><?php endif; ?><?= kcrm_h(($c['display_name'] !== '' ? $c['display_name'] : '（名前未取得）')) ?>
           <?php if ((int)$c['unread'] > 0): ?><span class="badge"><?= (int)$c['unread'] ?></span><?php endif; ?>
+          <?php if ((int)($c['handled'] ?? 1) === 1): ?><span class="done-tag">済</span><?php endif; ?>
           <?php if ($c['status'] === 'blocked'): ?><span class="blocked">ブロック中</span><?php endif; ?>
         </div>
         <div class="lm"><?= kcrm_h(mb_substr($lastbody, 0, 40)) ?></div>
@@ -233,6 +265,17 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
           <b><?= kcrm_h(($person['display_name'] !== '' ? $person['display_name'] : '（名前未取得）')) ?></b>
           <?php if ($person['status'] === 'blocked'): ?><span class="blocked">ブロック中</span><?php endif; ?>
           <div class="uid"><?= kcrm_h((string)$person['user_id']) ?></div>
+        </div>
+        <div class="state">
+          <?php $isopen = ((int)($person['handled'] ?? 1) === 0); ?>
+          <form method="post" style="display:inline">
+            <input type="hidden" name="action" value="handled">
+            <input type="hidden" name="user_id" value="<?= kcrm_h((string)$person['user_id']) ?>">
+            <input type="hidden" name="to" value="<?= $isopen ? '1' : '0' ?>">
+            <button type="submit" class="<?= $isopen ? '' : 'sub' ?>">
+              <?= $isopen ? '✓ 対応済みにする' : '未対応に戻す' ?>
+            </button>
+          </form>
         </div>
         <form class="note-form" method="post">
           <input type="hidden" name="action" value="note">
@@ -274,19 +317,28 @@ button.sub{background:#fff;color:var(--teal-d);border:1px solid var(--teal)}
         <?php endforeach; ?>
       </div>
 
-      <div class="composer">
+      <div class="hint">
+        <b>返信はLINEの画面から行ってください。</b>
+        <a href="https://manager.line.biz/account/@271hokhu/chat" target="_blank" rel="noopener">LINEのチャットを開く</a>
+        ／ スマホは「LINE公式アカウント」アプリ。
+        <span>LINEから送った返信はここには残らないため、対応が終わったら上の<b>［対応済みにする］</b>を押してください。</span>
+      </div>
+      <div class="replybox">
         <?php if ($person['status'] === 'blocked'): ?>
           <div class="warnline">この方はブロック中のため、送信できません。</div>
         <?php else: ?>
-          <form method="post">
-            <input type="hidden" name="action" value="send">
-            <input type="hidden" name="user_id" value="<?= kcrm_h((string)$person['user_id']) ?>">
-            <textarea name="text" placeholder="返信を書く" required></textarea>
-            <div class="row">
-              <button type="submit">送信する</button>
-              <span class="warnline">この送信は Push API です。<b>無料枠を1通消費します</b>（相手の発言への自動返信は無料）。</span>
-            </div>
-          </form>
+          <details>
+            <summary>ここから送ることもできます（記録は残りますが、無料枠を1通消費します）</summary>
+            <form method="post">
+              <input type="hidden" name="action" value="send">
+              <input type="hidden" name="user_id" value="<?= kcrm_h((string)$person['user_id']) ?>">
+              <textarea name="text" placeholder="返信を書く" required></textarea>
+              <div class="row">
+                <button type="submit">送信する</button>
+                <span class="warnline">Push API のため<b>無料枠を1通消費</b>します（今月 <?= $used ?>/<?= $free ?>）。</span>
+              </div>
+            </form>
+          </details>
         <?php endif; ?>
       </div>
     <?php endif; ?>
