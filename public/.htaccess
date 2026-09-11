@@ -1,0 +1,12 @@
+# heteml: PHP8系で動かす。既定は5.6なので、これが無いと ?? や declare(strict_types) で構文エラーになる。
+# バージョン指定の書式は php-script(=PHP8系) / php7.4-script / php5.6-script。
+AddHandler php-script .php
+
+# 設定ファイル（トークンが入る）を直接読ませない
+<FilesMatch "^kcrm_config\.php$|\.sqlite$|\.sqlite-wal$|\.sqlite-shm$">
+  Require all denied
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>

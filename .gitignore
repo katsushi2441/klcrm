@@ -1,0 +1,3 @@
+public/kcrm_config.php
+public/kcrm_data/*.sqlite*
+outputs/

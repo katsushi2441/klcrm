@@ -1,0 +1,6 @@
+# SQLite本体を絶対にHTTPで取らせない（顧客の相談内容が入っている）
+Require all denied
+<IfModule !mod_authz_core.c>
+  Order allow,deny
+  Deny from all
+</IfModule>
