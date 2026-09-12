@@ -35,6 +35,7 @@ if (empty($_SESSION['klcrm_ok'])) {
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="robots" content="noindex,nofollow">
     <title><?= klcrm_h(KLCRM_TITLE) ?></title>
+    <?= KLCRM_EXTRA_HEAD ?>
     <style>
     body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f3faf9;
       font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;color:#1d3038}
@@ -163,6 +164,7 @@ $hooks  = $db->query('SELECT * FROM webhook_log ORDER BY id DESC LIMIT 1')->fetc
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title><?= klcrm_h(KLCRM_TITLE) ?></title>
+<?= KLCRM_EXTRA_HEAD ?>
 <style>
 :root{--ink:#1d3038;--muted:#5f7078;--line:#dcebe9;--teal:#0a9a8f;--teal-d:#076f67;--paper:#f3faf9}
 *{box-sizing:border-box}

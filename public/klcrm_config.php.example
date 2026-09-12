@@ -31,3 +31,8 @@ define('KLCRM_FOLLOW_REPLY', '友だち追加ありがとうございます。IT
 
 // ---- 無料枠の目安（コミュニケーションプランは月200通。Pushだけが対象） ----
 define('KLCRM_PUSH_FREE_PER_MONTH', 200);
+
+// アクセス解析などのタグを入れたい場合は、ここにHTMLを書くと </head> の直前に出ます。
+// 空のままなら何も出ません（顧客の相談内容を扱う画面なので、入れるかは運用者の判断）。
+// 例: define('KLCRM_EXTRA_HEAD', '<script async src="https://example.com/tag.js"></script>');
+define('KLCRM_EXTRA_HEAD', '');

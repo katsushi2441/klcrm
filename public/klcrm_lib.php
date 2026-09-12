@@ -30,6 +30,9 @@ foreach ([
     'KLCRM_LINE_BASIC_ID' => '',
     'KLCRM_AUTO_REPLY' => '', 'KLCRM_FOLLOW_REPLY' => '',
     'KLCRM_PUSH_FREE_PER_MONTH' => 200,
+    // </head> の直前に差し込むHTML。自社のアクセス解析タグを入れたいとき用。
+    // 既定は空＝何も出ない。顧客の相談内容を扱う画面なので、入れるかどうかは運用者が決める。
+    'KLCRM_EXTRA_HEAD' => '',
 ] as $k => $v) { if (!defined($k)) { define($k, $v); } }
 
 /** SQLite。web直下に置くので .htaccess で必ず遮断する（klcrm_data/.htaccess） */
