@@ -62,7 +62,7 @@ if (empty($_SESSION['klcrm_ok'])) {
       <input type="password" name="klcrm_pw" placeholder="パスワード" autofocus required>
       <button type="submit">開く</button>
       <div class="by"><img src="assets/exbridge-mark.png" alt="" width="64" height="64"><span>株式会社エクスブリッジ</span></div>
-    </form></body></html><?php
+    </form><?php if (($_SERVER['HTTP_HOST'] ?? '') === 'proto.exbridge.jp'): ?><p style="text-align:center;font-size:13px;margin:14px 0;color:#5d6b7a">これはデモです。<a href="https://kappstore.exbridge.jp/app.php?id=0e723e981c922df6&amp;ref=klcrm" target="_blank" rel="noopener">この製品をオンプレミスで導入する（商品ページ）</a></p><?php endif; ?></body></html><?php
     exit;
 }
 
@@ -507,4 +507,5 @@ function copyAll(){
   });
 }
 </script>
+<?php if (($_SERVER['HTTP_HOST'] ?? '') === 'proto.exbridge.jp'): ?><p style="text-align:center;font-size:13px;margin:14px 0;color:#5d6b7a">これはデモです。<a href="https://kappstore.exbridge.jp/app.php?id=0e723e981c922df6&amp;ref=klcrm" target="_blank" rel="noopener">この製品をオンプレミスで導入する（商品ページ）</a></p><?php endif; ?>
 </body></html>
