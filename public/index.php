@@ -39,6 +39,7 @@ if (empty($_SESSION['klcrm_ok'])) {
     <style>
     body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f3faf9;
       font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;color:#1d3038}
+    *,*::before,*::after{box-sizing:border-box}
     form{background:#fff;border:1px solid #dcebe9;border-radius:16px;padding:26px 30px 22px;width:min(360px,92vw);text-align:center}
     .face{width:104px;height:104px;object-fit:contain;margin-bottom:4px}
     form h1,form p,form input{text-align:left}
